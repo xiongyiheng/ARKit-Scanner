@@ -72,6 +72,15 @@ final class ARProvider: ARDataReceiver {
     let colorRGBTextureDownscaled: MTLTexture
     let colorRGBTextureDownscaledLowRes: MTLTexture
     
+    var cameraTransform = simd_float4x4()
+    var cameraIntrinsics = simd_float3x3()
+    var RGBAValues = [UInt8]()
+    var depthValues = [UInt8]()
+    var timeStamp = TimeInterval()
+    var exposureDuration = TimeInterval()
+    var exposureOffset = Float()
+    
+    
     // Enable or disable depth upsampling.
     public var isToUpsampleDepth: Bool = false {
         didSet {
@@ -160,6 +169,21 @@ final class ARProvider: ARDataReceiver {
     func processLastArData() {
         colorYContent.texture = lastArData?.colorImage?.texture(withFormat: .r8Unorm, planeIndex: 0, addToCache: textureCache!)!
         colorCbCrContent.texture = lastArData?.colorImage?.texture(withFormat: .rg8Unorm, planeIndex: 1, addToCache: textureCache!)!
+        RGBAValues = lastArData!.RGBAValues
+        depthValues = lastArData!.depthValues
+        cameraTransform = lastArData!.cameraTransform
+        cameraIntrinsics = lastArData!.cameraIntrinsics
+        timeStamp = lastArData!.timeStamp
+        exposureDuration = lastArData!.exposureDuration
+        exposureOffset = lastArData!.exposureOffset
+//        var cameraTransform = simd_float4x4()
+//        var cameraIntrinsics = simd_float3x3()
+//        var RGBAValues = [UInt8]()
+//        var depthValues = [UInt8]()
+//        var timeStamp = TimeInterval()
+//        var exposureDuration = TimeInterval()
+//        var exposureOffset = Float()
+        
         if isUseSmoothedDepthForUpsampling {
             depthContent.texture = lastArData?.depthSmoothImage?.texture(withFormat: .r32Float, planeIndex: 0, addToCache: textureCache!)!
             confidenceContent.texture = lastArData?.confidenceSmoothImage?.texture(withFormat: .r8Unorm, planeIndex: 0, addToCache: textureCache!)!

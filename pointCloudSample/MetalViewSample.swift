@@ -119,7 +119,6 @@ struct MetalDepthView: View {
                             VStack() {
                                 MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence)
                                     .zoomOnTapModifier(height: sizeH, width: sizeW, title: isToUpsampleDepth ? "Upscaled Depth" : "Depth")
-                                
                                 MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).zoomOnTapModifier(height: sizeH, width: sizeW, title: "RGB")
 //                                MetalTextureViewConfidence(content: arProvider.confidenceContent)
 //                                    .zoomOnTapModifier(height: sizeH, width: sizeW, title: "Confidence")
@@ -136,6 +135,51 @@ struct MetalDepthView: View {
                             }
                         }
                         Spacer()
+                        Button("Save") {
+                            let timeStamp = Date(timeIntervalSince1970: (arProvider.timeStamp / 1000.0))
+                            let dateFormater = DateFormatter()
+                            dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
+                            let fileName = dateFormater.string(from: timeStamp)
+                            print("fileName")
+                            print(fileName)
+                            
+                            let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arProvider.cameraIntrinsics[x][y] } }
+                            print("camera Intri")
+                            print(cameraIntrinsics)
+                            let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arProvider.cameraTransform[x][y] } }
+                            dateFormater.dateFormat = "HH:mm:ss"
+                            let exposureDuration = dateFormater.string(from: Date(timeIntervalSince1970: (arProvider.exposureDuration / 1000.0)))
+                            let exposureOffset = "" + arProvider.exposureOffset.description
+                            print("exposureOffset")
+                            print(exposureOffset)
+                            
+                            if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+
+                                let intriURL = dir.appendingPathComponent(fileName+"_intri.txt")
+                                let transURL = dir.appendingPathComponent(fileName+"_trans.txt")
+                                //let RGBAURL = dir.appendingPathComponent(fileName+"_RGBA.txt")
+                                //let depthURL = dir.appendingPathComponent(fileName+"_depth.txt")
+                                let duraURL = dir.appendingPathComponent(fileName+"_dura.txt")
+                                let offsetURL = dir.appendingPathComponent(fileName+"_offset.txt")
+                                
+                                //writing
+                                do {
+                                    try (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
+                                    try (cameraTransform as NSArray).write(to: transURL, atomically: false)
+                                    //try (arProvider.RGBAValues as NSArray).write(to: RGBAURL, atomically: false)
+                                    //try (arProvider.depthValues as NSArray).write(to: depthURL, atomically: false)
+                                    try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)
+                                    try exposureOffset.write(to: offsetURL, atomically: false, encoding: .utf8)
+                                }
+                                catch {/* error handling here */}
+
+//                                //reading
+//                                do {
+//                                    let text2 = try String(contentsOf: fileURL, encoding: .utf8)
+//                                }
+//                                catch {/* error handling here */}
+                            }
+                        }
                     }
                 }
             }.navigationViewStyle(StackNavigationViewStyle())

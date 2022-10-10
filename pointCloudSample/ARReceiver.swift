@@ -26,6 +26,13 @@ final class ARData {
     var confidenceSmoothImage: CVPixelBuffer?
     var cameraIntrinsics = simd_float3x3()
     var cameraResolution = CGSize()
+    var cameraTransform = simd_float4x4()
+    var RGBAValues = [UInt8]()
+    var depthValues = [UInt8]()
+    var timeStamp = TimeInterval()
+    var exposureDuration = TimeInterval()
+    var exposureOffset = Float()
+    
 }
 
 // Configure and run an AR session to provide the app with depth-related AR data.
@@ -69,28 +76,34 @@ final class ARReceiver: NSObject, ARSessionDelegate {
 //            print("ArKit Pose:")
 //            // The position and orientation of the camera in world coordinate space.
 //            print(frame.camera.transform)
+            arData.cameraTransform = frame.camera.transform
 //            print("Camera Intristics:")
 //            print(frame.camera.intrinsics)
 //            print("Time Stamps:")
 //            print(frame.timestamp)
+            arData.timeStamp = frame.timestamp
 //            print("Exposure Duration:")
 //            print(frame.camera.exposureDuration)
+            arData.exposureDuration = frame.camera.exposureDuration
 //            print("Exposure Offset:")
 //            print(frame.camera.exposureOffset)
+            arData.exposureOffset = frame.camera.exposureOffset
             
             // Get RGBA values
             var colorImage: CGImage?
             VTCreateCGImageFromCVPixelBuffer(frame.capturedImage, options: nil, imageOut: &colorImage)
-            print("Color Image:")
+            //print("Color Image:")
             let RGBAValues:[UInt8] = pixelValues(fromCGImage: colorImage)!
-            print(RGBAValues.count)
+            arData.RGBAValues = RGBAValues
+            //print(RGBAValues.count)
             
             // Get depth values
             let depthImage_ci: CIImage = CIImage(cvPixelBuffer: frame.sceneDepth!.depthMap)
             let depthImage_cg: CGImage = convertCIImageToCGImage(inputImage: depthImage_ci)!
-            print("Depth Image:")
+            //print("Depth Image:")
             let depthValues:[UInt8] = pixelValues(fromCGImage: depthImage_cg)!
-            print(depthValues.count)
+            arData.depthValues = depthValues
+            //print(depthValues.count)
         }
     }
     
