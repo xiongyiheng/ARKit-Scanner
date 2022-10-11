@@ -136,13 +136,18 @@ struct MetalDepthView: View {
                         }
                         Spacer()
                         Button("Save") {
-                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageDepth, nil, nil, nil)
-                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageColor, nil, nil, nil)
+//                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageColor, nil, nil, nil)
+//                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageDepth, nil, nil, nil)
                             CVPixelBufferLockBaseAddress(arProvider.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
-                            let addr = CVPixelBufferGetBaseAddress(arProvider.depthImage!)
-                            let height = CVPixelBufferGetHeight(arProvider.depthImage!)
-                            let bpr = CVPixelBufferGetBytesPerRow(arProvider.depthImage!)
-                            let depthBuffer = Data(bytes: addr!, count: (bpr*height))
+                            let depthAddr = CVPixelBufferGetBaseAddress(arProvider.depthImage!)
+                            let depthHeight = CVPixelBufferGetHeight(arProvider.depthImage!)
+                            let depthBpr = CVPixelBufferGetBytesPerRow(arProvider.depthImage!)
+                            let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
+                            CVPixelBufferLockBaseAddress(arProvider.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
+                            let colorAddr = CVPixelBufferGetBaseAddress(arProvider.colorImage!)
+                            let colorHeight = CVPixelBufferGetHeight(arProvider.colorImage!)
+                            let colorBpr = CVPixelBufferGetBytesPerRow(arProvider.colorImage!)
+                            let colorBuffer = Data(bytes: colorAddr!, count: (colorBpr*colorHeight))
 //                            let timeStamp = Date(timeIntervalSince1970: (arProvider.timeStamp / 1000.0))
 //                            let dateFormater = DateFormatter()
 //                            dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
@@ -165,19 +170,17 @@ struct MetalDepthView: View {
                                 
                                 let intriURL = dir.appendingPathComponent(fileName+"_intri.txt")
                                 let transURL = dir.appendingPathComponent(fileName+"_trans.txt")
-                                //                                let RGBAURL = dir.appendingPathComponent(fileName+"_RGBA.txt")
-                                //                                let depthURL = dir.appendingPathComponent(fileName+"_depth.txt")
                                 let duraURL = dir.appendingPathComponent(fileName+"_dura.txt")
                                 let offsetURL = dir.appendingPathComponent(fileName+"_offset.txt")
                                 let depthBufferURL = dir.appendingPathComponent(fileName+"_depthBuffer.bin")
+                                let colorBufferURL = dir.appendingPathComponent(fileName+"_colorBuffer.bin")
                                 
                                 //writing
                                 do {
                                     try depthBuffer.write(to: depthBufferURL)
-                                    try (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
-                                    try (cameraTransform as NSArray).write(to: transURL, atomically: false)
-                                    //                                    try (arProvider.RGBAValues as NSArray).write(to: RGBAURL, atomically: false)
-                                    //                                    try (arProvider.depthValues as NSArray).write(to: depthURL, atomically: false)
+                                    try colorBuffer.write(to: colorBufferURL)
+                                    (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
+                                    (cameraTransform as NSArray).write(to: transURL, atomically: false)
                                     try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)
                                     try exposureOffset.write(to: offsetURL, atomically: false, encoding: .utf8)
                                 }

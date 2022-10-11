@@ -82,6 +82,7 @@ final class ARProvider: ARDataReceiver {
     var uiImageDepth = UIImage()
     var uiImageColor = UIImage()
     var depthImage: CVPixelBuffer?
+    var colorImage: CVPixelBuffer?
     
     
     // Enable or disable depth upsampling.
@@ -182,6 +183,7 @@ final class ARProvider: ARDataReceiver {
         uiImageDepth = lastArData!.uiImageDepth
         uiImageColor = lastArData!.uiImageColor
         depthImage = lastArData!.depthImage
+        colorImage = lastArData!.colorImage
         
         if isUseSmoothedDepthForUpsampling {
             depthContent.texture = lastArData?.depthSmoothImage?.texture(withFormat: .r32Float, planeIndex: 0, addToCache: textureCache!)!
