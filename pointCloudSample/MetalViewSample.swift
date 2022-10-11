@@ -72,65 +72,11 @@ struct MetalDepthView: View {
             NavigationView {
                 GeometryReader { geometry in
                     VStack() {
-                        // Size the point cloud view relative to the underlying
-                        // 3D geometry by matching the textures' aspect ratio.
-                        //                        HStack() {
-                        //                            Spacer()
-                        //                            MetalPointCloud(arData: arProvider,
-                        //                                            confSelection: $selectedConfidence,
-                        //                                            scaleMovement: $scaleMovement).zoomOnTapModifier(
-                        //                                                height: geometry.size.width / 2 / sizeW * sizeH,
-                        //                                                width: geometry.size.width / 2, title: "")
-                        //                            Spacer()
-                        //                        }
-                        //                        HStack {
-                        //                            Text("Confidence Select:")
-                        //                            Picker(selection: $selectedConfidence, label: Text("Confidence Select")) {
-                        //                                ForEach(0..<confLevels.count, id: \.self) { index in
-                        //                                    Text(self.confLevels[index]).tag(index)
-                        //                                }
-                        //
-                        //                            }.pickerStyle(SegmentedPickerStyle())
-                        //                        }.padding(.horizontal)
-                        //                        HStack {
-                        //                            Text("Scale Movement: ")
-                        //                            Slider(value: $scaleMovement, in: -3...10, step: 0.5)
-                        //                            Text(String(format: "%.1f", scaleMovement))
-                        //                        }.padding(.horizontal)
-                        //                        HStack {
-                        //                            Toggle("Guided Filter", isOn: $isToUpsampleDepth).onChange(of: isToUpsampleDepth) { _ in
-                        //                                isToUpsampleDepth.toggle()
-                        //                                arProvider.isToUpsampleDepth = isToUpsampleDepth
-                        //                            }.frame(width: 160, height: 30)
-                        //                            Toggle("Smooth", isOn: $isShowSmoothDepth).onChange(of: isShowSmoothDepth) { _ in
-                        //                                isShowSmoothDepth.toggle()
-                        //                                arProvider.isUseSmoothedDepthForUpsampling = isShowSmoothDepth
-                        //                            }.frame(width: 160, height: 30)
-                        //                            Spacer()
-                        //                            Button(action: {
-                        //                                isArPaused.toggle()
-                        //                                isArPaused ? arProvider.pause() : arProvider.start()
-                        //                            }) {
-                        //                                Image(systemName: isArPaused ? "play.circle" : "pause.circle").resizable().frame(width: 30, height: 30)
-                        //                            }
-                        //                        }.padding(.horizontal)
-                        
                         ScrollView(.horizontal) {
                             VStack() {
                                 MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence)
                                     .zoomOnTapModifier(height: sizeH, width: sizeW, title: isToUpsampleDepth ? "Upscaled Depth" : "Depth")
                                 MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).zoomOnTapModifier(height: sizeH, width: sizeW, title: "RGB")
-                                //                                MetalTextureViewConfidence(content: arProvider.confidenceContent)
-                                //                                    .zoomOnTapModifier(height: sizeH, width: sizeW, title: "Confidence")
-                                //                                if isToUpsampleDepth {
-                                //                                    VStack {
-                                //                                        Text("Upscale Coefficients").foregroundColor(Color.red)
-                                //                                        MetalTextureViewCoefs(content: arProvider.upscaledCoef).frame(maxWidth: sizeW,
-                                //                                                                                                      maxHeight: sizeH,
-                                //                                                                                                      alignment: .center)
-                                //                                    }
-                                //
-                                //                                }
                                 
                             }
                         }
@@ -156,16 +102,11 @@ struct MetalDepthView: View {
 //                            print(arProvider.timeStamp)
                             let fileName = "" + arProvider.timeStamp.description
                             let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arProvider.cameraIntrinsics[x][y] } }
-                            //                            print("camera Intri")
-                            //                            print(cameraIntrinsics)
                             let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arProvider.cameraTransform[x][y] } }
 //                            dateFormater.dateFormat = "HH:mm:ss"
 //                            let exposureDuration = dateFormater.string(from: Date(timeIntervalSince1970: (arProvider.exposureDuration / 1000.0)))
                             let exposureDuration = "" + arProvider.exposureDuration.description
                             let exposureOffset = "" + arProvider.exposureOffset.description
-                            //                            print("exposureOffset")
-                            //                            print(exposureOffset)
-                            //
                             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                                 
                                 let intriURL = dir.appendingPathComponent(fileName+"_intri.txt")
