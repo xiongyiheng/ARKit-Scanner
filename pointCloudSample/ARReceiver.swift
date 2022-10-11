@@ -27,11 +27,13 @@ final class ARData {
     var cameraIntrinsics = simd_float3x3()
     var cameraResolution = CGSize()
     var cameraTransform = simd_float4x4()
-    var RGBAValues = [UInt8]()
-    var depthValues = [UInt8]()
+//    var RGBAValues = [UInt8]()
+//    var depthValues = [UInt8]()
     var timeStamp = TimeInterval()
     var exposureDuration = TimeInterval()
     var exposureOffset = Float()
+    var uiImageDepth = UIImage()
+    var uiImageColor = UIImage()
     
 }
 
@@ -89,66 +91,93 @@ final class ARReceiver: NSObject, ARSessionDelegate {
 //            print(frame.camera.exposureOffset)
             arData.exposureOffset = frame.camera.exposureOffset
             
-            // Get RGBA values
-            var colorImage: CGImage?
-            VTCreateCGImageFromCVPixelBuffer(frame.capturedImage, options: nil, imageOut: &colorImage)
-            //print("Color Image:")
-            let RGBAValues:[UInt8] = pixelValues(fromCGImage: colorImage)!
-            arData.RGBAValues = RGBAValues
-            //print(RGBAValues.count)
+            let ciImageDepth = CIImage(cvPixelBuffer: frame.sceneDepth!.depthMap)
+            let contextDepth:CIContext = CIContext.init(options: nil)
+            let cgImageDepth:CGImage = contextDepth.createCGImage(ciImageDepth, from: ciImageDepth.extent)!
+            let uiImageDepth:UIImage = UIImage(cgImage: cgImageDepth, scale: 1, orientation: UIImage.Orientation.up)
+            arData.uiImageDepth = uiImageDepth
             
-            // Get depth values
-            let depthImage_ci: CIImage = CIImage(cvPixelBuffer: frame.sceneDepth!.depthMap)
-            let depthImage_cg: CGImage = convertCIImageToCGImage(inputImage: depthImage_ci)!
+            let ciImageColor = CIImage(cvPixelBuffer: frame.capturedImage)
+            let contextColor:CIContext = CIContext.init(options: nil)
+            let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
+            let uiImageColor:UIImage = UIImage(cgImage: cgImageColor, scale: 1, orientation: UIImage.Orientation.up)
+            arData.uiImageColor = uiImageColor
+            
+//            // Get RGBA values
+//            var colorImage: CGImage?
+//            VTCreateCGImageFromCVPixelBuffer(frame.capturedImage, options: nil, imageOut: &colorImage)
+//            //print("Color Image:")
+//            let RGBAValues:[UInt8] = pixelValues(fromCGImage: colorImage, isRGB: true)!
+//            arData.RGBAValues = RGBAValues
+//            //print(RGBAValues.count)
+//
+            // Get depth values but still in rgb values
+            //let depthImage_ci: CIImage = CIImage(cvPixelBuffer: frame.sceneDepth!.depthMap)
+            //let depthImage_cg: CGImage = convertCIImageToCGImage(inputImage: depthImage_ci)!
             //print("Depth Image:")
-            let depthValues:[UInt8] = pixelValues(fromCGImage: depthImage_cg)!
-            arData.depthValues = depthValues
-            //print(depthValues.count)
+            //let depthValues:[UInt8] = pixelValues(fromCGImage: depthImage_cg, isRGB: false)!
+//            arData.depthValues = depthValues
+//            //print(depthValues.count)
+//            let width = CVPixelBufferGetWidth(frame.sceneDepth!.depthMap)
+//            CVPixelBufferLockBaseAddress(frame.sceneDepth!.depthMap, CVPixelBufferLockFlags(rawValue: 0))
+//            let depthPointer = unsafeBitCast(CVPixelBufferGetBaseAddress(frame.sceneDepth!.depthMap), to:UnsafeMutablePointer<Float32>.self)
+//            print(depthPointer)
+//            for i in 0...256 {
+//                for j in 0...192 {
+//                    var point = CGPoint(x:i, y:j)
+//                    let distanceAtXYPoint = depthPointer[Int(point.y * CGFloat(width) + point.x)]
+//                    print(distanceAtXYPoint)
+//                }
+//            }
+//            print("depthvalues")
+//            print(distanceAtXYPoint)
+//            print(depthValues[910])
         }
     }
     
     // Get pixel values of CGImage
-    func pixelValues(fromCGImage imageRef: CGImage?) -> [UInt8]?
-        {
-            var width = 0
-            var height = 0
-            var pixelValues: [UInt8]?
-
-            if let imageRef = imageRef {
-                width = imageRef.width
-                height = imageRef.height
-                let bitsPerComponent = imageRef.bitsPerComponent
-                let bytesPerRow = imageRef.bytesPerRow
-                let totalBytes = height * bytesPerRow
-                let bitmapInfo = imageRef.bitmapInfo
-
-                //let colorSpace = CGColorSpaceCreateDeviceRGB()
-                let colorSpace = CGColorSpaceCreateDeviceGray()
-                var intensities = [UInt8](repeating: 0, count: totalBytes)
-
-                let contextRef = CGContext(data: &intensities,
-                                          width: width,
-                                         height: height,
-                               bitsPerComponent: bitsPerComponent,
-                                    bytesPerRow: bytesPerRow,
-                                          space: colorSpace,
-                                     bitmapInfo: bitmapInfo.rawValue)
-                contextRef?.draw(imageRef, in: CGRect(x: 0.0, y: 0.0, width: CGFloat(width), height: CGFloat(height)))
-
-                pixelValues = intensities
-            }
-
-            return pixelValues
-    }
+//    func pixelValues(fromCGImage imageRef: CGImage?, isRGB: Bool) -> [UInt8]?
+//        {
+//            var width = 0
+//            var height = 0
+//            var pixelValues: [UInt8]?
+//
+//            if let imageRef = imageRef {
+//                width = imageRef.width
+//                height = imageRef.height
+//                let bitsPerComponent = imageRef.bitsPerComponent
+//                let bytesPerRow = imageRef.bytesPerRow
+//                let totalBytes = height * bytesPerRow
+//                let bitmapInfo = imageRef.bitmapInfo
+//                let colorSpace = CGColorSpaceCreateDeviceRGB()
+//                //if (!isRGB) {
+//                //    colorSpace = CGColorSpaceCreateDeviceGray()
+//                //}
+//                var intensities = [UInt8](repeating: 0, count: totalBytes)
+//
+//                let contextRef = CGContext(data: &intensities,
+//                                          width: width,
+//                                         height: height,
+//                               bitsPerComponent: bitsPerComponent,
+//                                    bytesPerRow: bytesPerRow,
+//                                          space: colorSpace,
+//                                     bitmapInfo: bitmapInfo.rawValue)
+//                contextRef?.draw(imageRef, in: CGRect(x: 0.0, y: 0.0, width: CGFloat(width), height: CGFloat(height)))
+//
+//                pixelValues = intensities
+//            }
+//
+//            return pixelValues
+//    }
     
     // Convert CIImage to CGImage
-    func convertCIImageToCGImage(inputImage: CIImage) -> CGImage? {
-        let context = CIContext(options: nil)
-        if let cgImage = context.createCGImage(inputImage, from: inputImage.extent) {
-            return cgImage
-        }
-        return nil
-    }
+//    func convertCIImageToCGImage(inputImage: CIImage) -> CGImage? {
+//        let context = CIContext(options: nil)
+//        if let cgImage = context.createCGImage(inputImage, from: inputImage.extent) {
+//            return cgImage
+//        }
+//        return nil
+//    }
     
     
 }
