@@ -60,7 +60,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     func pause() {
         arSession.pause()
     }
-  
+    
     // Send required data from `ARFrame` to the delegate class via the `onNewARData` callback.
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         if(frame.sceneDepth != nil) && (frame.smoothedSceneDepth != nil) {
@@ -88,4 +88,6 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
             let uiImageColor:UIImage = UIImage(cgImage: cgImageColor, scale: 1, orientation: UIImage.Orientation.up)
             arData.uiImageColor = uiImageColor
+        }
+    }
 }
