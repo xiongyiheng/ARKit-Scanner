@@ -82,7 +82,6 @@ final class ARProvider: ARDataReceiver {
     var depthImage: CVPixelBuffer?
     var colorImage: CVPixelBuffer?
     
-    
     // Enable or disable depth upsampling.
     public var isToUpsampleDepth: Bool = false {
         didSet {
@@ -122,6 +121,10 @@ final class ARProvider: ARDataReceiver {
     // Pause the stream from ARKit.
     func pause() {
         arReceiver.pause()
+    }
+    
+    func record(isRecord: Bool) {
+        arReceiver.record(isRecord: isRecord)
     }
     
     // Initialize the MPS filters, metal pipeline, and Metal textures.

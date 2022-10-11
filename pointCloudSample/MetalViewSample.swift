@@ -77,7 +77,14 @@ struct MetalDepthView: View {
                                 MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence)
                                     .zoomOnTapModifier(height: sizeH, width: sizeW, title: isToUpsampleDepth ? "Upscaled Depth" : "Depth")
                                 MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).zoomOnTapModifier(height: sizeH, width: sizeW, title: "RGB")
-                                
+                            }
+                        }
+                        Spacer()
+                        Button("Record") {
+                            if arProvider.arReceiver.isRecord == false {
+                                arProvider.record(isRecord: true)
+                            } else {
+                                arProvider.record(isRecord: false)
                             }
                         }
                         Spacer()
@@ -89,7 +96,7 @@ struct MetalDepthView: View {
                             let depthHeight = CVPixelBufferGetHeight(arProvider.depthImage!)
                             let depthBpr = CVPixelBufferGetBytesPerRow(arProvider.depthImage!)
                             let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
-                            CVPixelBufferLockBaseAddress(arProvider.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
+                            CVPixelBufferLockBaseAddress(arProvider.colorImage!, CVPixelBufferLockFlags(rawValue: 0))
                             let colorAddr = CVPixelBufferGetBaseAddress(arProvider.colorImage!)
                             let colorHeight = CVPixelBufferGetHeight(arProvider.colorImage!)
                             let colorBpr = CVPixelBufferGetBytesPerRow(arProvider.colorImage!)
