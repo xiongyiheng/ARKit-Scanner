@@ -82,13 +82,46 @@ struct MetalDepthView: View {
                         Spacer()
                         Button("Record") {
                             if arProvider.arReceiver.isRecord == false {
-                                arProvider.record(isRecord: true)
+                                let currentTime = Date()
+                                let dateFormater = DateFormatter()
+                                dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
+                                let directory = dateFormater.string(from: currentTime)
+                                // create directory
+                                let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+                                let documentsDirectory = paths[0]
+                                let docURL = URL(string: documentsDirectory)!
+                                let dataPath = docURL.appendingPathComponent(directory)
+                                if !FileManager.default.fileExists(atPath: dataPath.path) {
+                                    do {
+                                        try FileManager.default.createDirectory(atPath: dataPath.path, withIntermediateDirectories: true, attributes: nil)
+                                    } catch {
+                                        print(error.localizedDescription)
+                                    }
+                                }
+                                arProvider.record(isRecord: true, directory: directory)
                             } else {
-                                arProvider.record(isRecord: false)
+                                arProvider.record(isRecord: false, directory: "")
                             }
                         }
                         Spacer()
                         Button("Save") {
+                            let currentTime = Date()
+                            let dateFormater = DateFormatter()
+                            dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
+                            let directory = dateFormater.string(from: currentTime)
+                            // let directory = "testDiretory"
+                            // create directory
+                            let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+                            let documentsDirectory = paths[0]
+                            let docURL = URL(string: documentsDirectory)!
+                            let dataPath = docURL.appendingPathComponent(directory)
+                            if !FileManager.default.fileExists(atPath: dataPath.path) {
+                                do {
+                                    try FileManager.default.createDirectory(atPath: dataPath.path, withIntermediateDirectories: true, attributes: nil)
+                                } catch {
+                                    print(error.localizedDescription)
+                                }
+                            }
 //                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageColor, nil, nil, nil)
 //                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageDepth, nil, nil, nil)
                             CVPixelBufferLockBaseAddress(arProvider.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
@@ -96,37 +129,34 @@ struct MetalDepthView: View {
                             let depthHeight = CVPixelBufferGetHeight(arProvider.depthImage!)
                             let depthBpr = CVPixelBufferGetBytesPerRow(arProvider.depthImage!)
                             let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
-                            CVPixelBufferLockBaseAddress(arProvider.colorImage!, CVPixelBufferLockFlags(rawValue: 0))
-                            let colorAddr = CVPixelBufferGetBaseAddress(arProvider.colorImage!)
-                            let colorHeight = CVPixelBufferGetHeight(arProvider.colorImage!)
-                            let colorBpr = CVPixelBufferGetBytesPerRow(arProvider.colorImage!)
-                            let colorBuffer = Data(bytes: colorAddr!, count: (colorBpr*colorHeight))
-//                            let timeStamp = Date(timeIntervalSince1970: (arProvider.timeStamp / 1000.0))
-//                            let dateFormater = DateFormatter()
-//                            dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
-//                            let fileName = dateFormater.string(from: timeStamp)
-//                            print("time stamp")
-//                            print(arProvider.timeStamp)
-                            let fileName = "" + arProvider.timeStamp.description
+                            
+                            let uiImageColor = arProvider.uiImageColor
+                            
+//                            CVPixelBufferLockBaseAddress(arProvider.colorImage!, CVPixelBufferLockFlags(rawValue: 0))
+//                            let colorAddr = CVPixelBufferGetBaseAddress(arProvider.colorImage!)
+//                            let colorHeight = CVPixelBufferGetHeight(arProvider.colorImage!)
+//                            let colorBpr = CVPixelBufferGetBytesPerRow(arProvider.colorImage!)
+//                            let colorBuffer = Data(bytes: colorAddr!, count: (colorBpr*colorHeight))
+                            
                             let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arProvider.cameraIntrinsics[x][y] } }
                             let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arProvider.cameraTransform[x][y] } }
-//                            dateFormater.dateFormat = "HH:mm:ss"
-//                            let exposureDuration = dateFormater.string(from: Date(timeIntervalSince1970: (arProvider.exposureDuration / 1000.0)))
                             let exposureDuration = "" + arProvider.exposureDuration.description
                             let exposureOffset = "" + arProvider.exposureOffset.description
+                            
+                            let fileName = "" + arProvider.timeStamp.description
+                            
                             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                                
-                                let intriURL = dir.appendingPathComponent(fileName+"_intri.txt")
-                                let transURL = dir.appendingPathComponent(fileName+"_trans.txt")
-                                let duraURL = dir.appendingPathComponent(fileName+"_dura.txt")
-                                let offsetURL = dir.appendingPathComponent(fileName+"_offset.txt")
-                                let depthBufferURL = dir.appendingPathComponent(fileName+"_depthBuffer.bin")
-                                let colorBufferURL = dir.appendingPathComponent(fileName+"_colorBuffer.bin")
-                                
+                                let intriURL = dir.appendingPathComponent(directory + "/intri.xml")
+                                let transURL = dir.appendingPathComponent(directory + "/trans.xml")
+                                let duraURL = dir.appendingPathComponent(directory + "/dura.txt")
+                                let offsetURL = dir.appendingPathComponent(directory + "/offset.txt")
+                                let depthBufferURL = dir.appendingPathComponent(directory + "/" + fileName + "_depthBuffer.bin")
+                                let colorJpgURL = dir.appendingPathComponent(directory + "/" + fileName + "_color.jpeg")
+
                                 //writing
                                 do {
                                     try depthBuffer.write(to: depthBufferURL)
-                                    try colorBuffer.write(to: colorBufferURL)
+                                    try uiImageColor.jpegData(compressionQuality: 0.0)!.write(to: colorJpgURL)
                                     (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
                                     (cameraTransform as NSArray).write(to: transURL, atomically: false)
                                     try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)

@@ -29,7 +29,7 @@ final class ARData {
     var timeStamp = TimeInterval()
     var exposureDuration = TimeInterval()
     var exposureOffset = Float()
-    var uiImageDepth = UIImage()
+//    var uiImageDepth = UIImage()
     var uiImageColor = UIImage()
     
 }
@@ -40,6 +40,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     var arSession = ARSession()
     weak var delegate: ARDataReceiver?
     public var isRecord = false
+    public var directory = ""
     
     // Configure and start the ARSession.
     override init() {
@@ -61,8 +62,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         arSession.pause()
     }
     
-    func record(isRecord: Bool) {
+    func record(isRecord: Bool, directory: String) {
         self.isRecord = isRecord
+        self.directory = directory
     }
     
     // Send required data from `ARFrame` to the delegate class via the `onNewARData` callback.
@@ -81,12 +83,12 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             arData.exposureDuration = frame.camera.exposureDuration
             arData.exposureOffset = frame.camera.exposureOffset
             
-            let ciImageDepth = CIImage(cvPixelBuffer: frame.sceneDepth!.depthMap)
-            let contextDepth:CIContext = CIContext.init(options: nil)
-            let cgImageDepth:CGImage = contextDepth.createCGImage(ciImageDepth, from: ciImageDepth.extent)!
-            let uiImageDepth:UIImage = UIImage(cgImage: cgImageDepth, scale: 1, orientation: UIImage.Orientation.up)
-            arData.uiImageDepth = uiImageDepth
-            
+//            let ciImageDepth = CIImage(cvPixelBuffer: frame.sceneDepth!.depthMap)
+//            let contextDepth:CIContext = CIContext.init(options: nil)
+//            let cgImageDepth:CGImage = contextDepth.createCGImage(ciImageDepth, from: ciImageDepth.extent)!
+//            let uiImageDepth:UIImage = UIImage(cgImage: cgImageDepth, scale: 1, orientation: UIImage.Orientation.up)
+//            arData.uiImageDepth = uiImageDepth
+//
             let ciImageColor = CIImage(cvPixelBuffer: frame.capturedImage)
             let contextColor:CIContext = CIContext.init(options: nil)
             let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
@@ -94,50 +96,44 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             arData.uiImageColor = uiImageColor
             
             if self.isRecord {
-                print(arData.timeStamp)
-//                CVPixelBufferLockBaseAddress(arData.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
-//                let depthAddr = CVPixelBufferGetBaseAddress(arData.depthImage!)
-//                let depthHeight = CVPixelBufferGetHeight(arData.depthImage!)
-//                let depthBpr = CVPixelBufferGetBytesPerRow(arData.depthImage!)
-//                let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
+                CVPixelBufferLockBaseAddress(arData.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
+                let depthAddr = CVPixelBufferGetBaseAddress(arData.depthImage!)
+                let depthHeight = CVPixelBufferGetHeight(arData.depthImage!)
+                let depthBpr = CVPixelBufferGetBytesPerRow(arData.depthImage!)
+                let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
+                
 //                CVPixelBufferLockBaseAddress(arData.colorImage!, CVPixelBufferLockFlags(rawValue: 0))
 //                let colorAddr = CVPixelBufferGetBaseAddress(arData.colorImage!)
 //                let colorHeight = CVPixelBufferGetHeight(arData.colorImage!)
 //                let colorBpr = CVPixelBufferGetBytesPerRow(arData.colorImage!)
 //                let colorBuffer = Data(bytes: colorAddr!, count: (colorBpr*colorHeight))
-////                            let timeStamp = Date(timeIntervalSince1970: (arProvider.timeStamp / 1000.0))
-////                            let dateFormater = DateFormatter()
-////                            dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
-////                            let fileName = dateFormater.string(from: timeStamp)
-////                            print("time stamp")
-////                            print(arProvider.timeStamp)
-//                let fileName = "" + arData.timeStamp.description
-//                let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
-//                let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arData.cameraTransform[x][y] } }
-////                            dateFormater.dateFormat = "HH:mm:ss"
-////                            let exposureDuration = dateFormater.string(from: Date(timeIntervalSince1970: (arProvider.exposureDuration / 1000.0)))
-//                let exposureDuration = "" + arData.exposureDuration.description
-//                let exposureOffset = "" + arData.exposureOffset.description
-//                if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-//
-//                    let intriURL = dir.appendingPathComponent(fileName+"_intri.txt")
-//                    let transURL = dir.appendingPathComponent(fileName+"_trans.txt")
-//                    let duraURL = dir.appendingPathComponent(fileName+"_dura.txt")
-//                    let offsetURL = dir.appendingPathComponent(fileName+"_offset.txt")
-//                    let depthBufferURL = dir.appendingPathComponent(fileName+"_depthBuffer.bin")
-//                    let colorBufferURL = dir.appendingPathComponent(fileName+"_colorBuffer.bin")
-//
-//                    //writing
-//                    do {
-//                        try depthBuffer.write(to: depthBufferURL)
-//                        try colorBuffer.write(to: colorBufferURL)
-//                        (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
-//                        (cameraTransform as NSArray).write(to: transURL, atomically: false)
-//                        try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)
-//                        try exposureOffset.write(to: offsetURL, atomically: false, encoding: .utf8)
-//                    }
-//                    catch {/* error handling here */}
-//                }
+                
+                let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
+                let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arData.cameraTransform[x][y] } }
+                let exposureDuration = "" + arData.exposureDuration.description
+                let exposureOffset = "" + arData.exposureOffset.description
+                
+                let fileName = "" + arData.timeStamp.description
+                
+                if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    let intriURL = dir.appendingPathComponent(self.directory + "/intri.xml")
+                    let transURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_trans.xml")
+                    let duraURL = dir.appendingPathComponent(self.directory + "/dura.txt")
+                    let offsetURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_offset.txt")
+                    let depthBufferURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_depthBuffer.bin")
+                    let colorJpgURL = dir.appendingPathComponent(directory + "/" + fileName + "_color.jpeg")
+
+                    //writing
+                    do {
+                        try depthBuffer.write(to: depthBufferURL)
+                        try uiImageColor.jpegData(compressionQuality: 0.0)!.write(to: colorJpgURL)
+                        (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
+                        (cameraTransform as NSArray).write(to: transURL, atomically: false)
+                        try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)
+                        try exposureOffset.write(to: offsetURL, atomically: false, encoding: .utf8)
+                    }
+                    catch {/* error handling here */}
+                }
             }
         }
     }

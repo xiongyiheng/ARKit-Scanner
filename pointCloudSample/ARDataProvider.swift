@@ -77,10 +77,10 @@ final class ARProvider: ARDataReceiver {
     var timeStamp = TimeInterval()
     var exposureDuration = TimeInterval()
     var exposureOffset = Float()
-    var uiImageDepth = UIImage()
+//    var uiImageDepth = UIImage()
     var uiImageColor = UIImage()
     var depthImage: CVPixelBuffer?
-    var colorImage: CVPixelBuffer?
+//    var colorImage: CVPixelBuffer?
     
     // Enable or disable depth upsampling.
     public var isToUpsampleDepth: Bool = false {
@@ -123,8 +123,8 @@ final class ARProvider: ARDataReceiver {
         arReceiver.pause()
     }
     
-    func record(isRecord: Bool) {
-        arReceiver.record(isRecord: isRecord)
+    func record(isRecord: Bool, directory: String) {
+        arReceiver.record(isRecord: isRecord, directory: directory)
     }
     
     // Initialize the MPS filters, metal pipeline, and Metal textures.
@@ -179,10 +179,10 @@ final class ARProvider: ARDataReceiver {
         timeStamp = lastArData!.timeStamp
         exposureDuration = lastArData!.exposureDuration
         exposureOffset = lastArData!.exposureOffset
-        uiImageDepth = lastArData!.uiImageDepth
+//        uiImageDepth = lastArData!.uiImageDepth
         uiImageColor = lastArData!.uiImageColor
         depthImage = lastArData!.depthImage
-        colorImage = lastArData!.colorImage
+//        colorImage = lastArData!.colorImage
         
         if isUseSmoothedDepthForUpsampling {
             depthContent.texture = lastArData?.depthSmoothImage?.texture(withFormat: .r32Float, planeIndex: 0, addToCache: textureCache!)!
