@@ -170,12 +170,4 @@ struct MetalDepthView: View {
             }
         }
     }
-    struct MtkView_Previews: PreviewProvider {
-        static var previews: some View {
-            Group {
-                MetalDepthView().previewDevice("iPad Pro (12.9-inch) (4th generation)")
-                MetalDepthView().previewDevice("iPhone 11 Pro")
-            }
-        }
-    }
 }
