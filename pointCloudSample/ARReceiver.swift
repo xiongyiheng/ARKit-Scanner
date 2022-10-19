@@ -11,69 +11,17 @@ import Combine
 import ARKit
 import AVFoundation
 
-extension UIImage {
-        
-    func convertToBuffer() -> CVPixelBuffer? {
-        
-        let attributes = [
-            kCVPixelBufferCGImageCompatibilityKey: kCFBooleanTrue,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: kCFBooleanTrue
-        ] as CFDictionary
-        
-        var pixelBuffer: CVPixelBuffer?
-        
-        let status = CVPixelBufferCreate(
-            kCFAllocatorDefault, Int(self.size.width),
-            Int(self.size.height),
-            kCVPixelFormatType_32ARGB,
-            attributes,
-            &pixelBuffer)
-        
-        guard (status == kCVReturnSuccess) else {
-            return nil
-        }
-        
-        CVPixelBufferLockBaseAddress(pixelBuffer!, CVPixelBufferLockFlags(rawValue: 0))
-        
-        let pixelData = CVPixelBufferGetBaseAddress(pixelBuffer!)
-        let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
-        
-        let context = CGContext(
-            data: pixelData,
-            width: Int(self.size.width),
-            height: Int(self.size.height),
-            bitsPerComponent: 8,
-            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer!),
-            space: rgbColorSpace,
-            bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)
-        
-        context?.translateBy(x: 0, y: self.size.height)
-        context?.scaleBy(x: 1.0, y: -1.0)
-        
-        UIGraphicsPushContext(context!)
-        self.draw(in: CGRect(x: 0, y: 0, width: self.size.width, height: self.size.height))
-        UIGraphicsPopContext()
-        
-        CVPixelBufferUnlockBaseAddress(pixelBuffer!, CVPixelBufferLockFlags(rawValue: 0))
-        
-        return pixelBuffer
-    }
-}
-
 struct VideoSettings {
-    var size = CGSize(width: 1920, height: 1440)
-    var fps: Int32 = 60   // frames per second
+    var size = CGSize(width: 1920, height: 1440) // predefined in arkit
+    var fps: Int32 = 60   // predefined in arkit
     var avCodecKey = AVVideoCodecType.h264
-    var videoFilename = "video"
+    var videoFilename = "rgbVideo"
     var videoFilenameExt = "mp4"
     
     var outputURL: URL {
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             return dir.appendingPathComponent(videoFilename + "/video").appendingPathExtension(videoFilenameExt)
         }
-//        if let tmpDirURL = try? fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true) {
-//            return tmpDirURL.appendingPathComponent(videoFilename).appendingPathExtension(videoFilenameExt)
-//        }
         fatalError("URLForDirectory() failed")
     }
 }
@@ -97,9 +45,7 @@ final class ARData {
     var timeStamp = TimeInterval()
     var exposureDuration = TimeInterval()
     var exposureOffset = Float()
-//    var uiImageDepth = UIImage()
     var uiImageColor = UIImage()
-    
 }
 
 // Configure and run an AR session to provide the app with depth-related AR data.
@@ -112,6 +58,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     var frameNum = 0
     var settings = VideoSettings()
     var videoWriter: VideoWriter?
+    var depthBufferSequence: Data?
     
     // Configure and start the ARSession.
     override init() {
@@ -135,9 +82,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     
     func record(isRecord: Bool, directory: String) {
         self.isRecord = isRecord
-        self.directory = directory
         self.frameNum = 0
         if self.isRecord == true {
+            self.directory = directory
             self.settings.videoFilename = directory
             self.videoWriter = VideoWriter(videoSettings: self.settings)
             self.videoWriter!.start()
@@ -145,6 +92,12 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             self.videoWriter!.videoWriterInput.markAsFinished()
             self.videoWriter!.videoWriter.finishWriting {
                 print("finish video generating")
+            }
+            
+            if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                do {
+                    try self.depthBufferSequence?.write(to: dir.appendingPathComponent(self.directory + "/" + "depthBufferSequence.bin"))
+                } catch {}
             }
         }
     }
@@ -184,6 +137,15 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                 let success = self.videoWriter!.addBuffer(pixelBuffer: arData.colorImage!, withPresentationTime: presentationTime)
                 if success == false {
                     fatalError("addBuffer() failed")
+                }
+                
+                // save a binary stream
+                if self.frameNum == 0 {
+                    self.depthBufferSequence = depthBuffer
+                } else {
+                    do {
+                        self.depthBufferSequence?.append(depthBuffer)
+                    }
                 }
                 
                 self.frameNum += 1
@@ -279,8 +241,6 @@ class VideoWriter {
         createPixelBufferAdaptor()
         
         if videoWriter.startWriting() == false {
-            print("error")
-            print(videoWriter.error as Any)
             fatalError("startWriting() failed")
         }
         
