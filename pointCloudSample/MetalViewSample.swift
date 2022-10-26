@@ -1,9 +1,9 @@
 /*
-See LICENSE folder for this sample’s licensing information.
-
-Abstract:
-A parent view class that displays the sample app's other views.
-*/
+ See LICENSE folder for this sample’s licensing information.
+ 
+ Abstract:
+ A parent view class that displays the sample app's other views.
+ */
 
 import Foundation
 import SwiftUI
@@ -29,13 +29,6 @@ struct Texture<T: View>: ViewModifier {
     }
 }
 
-extension View {
-    // Apply `zoomOnTapModifier` with a `self` reference to show the same view
-    // on tap.
-    func zoomOnTapModifier(height: CGFloat, width: CGFloat, title: String) -> some View {
-        modifier(Texture(height: height, width: width, title: title, view: self))
-    }
-}
 extension Image {
     init(_ texture: MTLTexture, ciContext: CIContext, scale: CGFloat, orientation: Image.Orientation, label: Text) {
         let ciimage = CIImage(mtlTexture: texture)!
@@ -65,51 +58,48 @@ struct MetalDepthView: View {
     
     var confLevels = ["🔵🟢🔴", "🔵🟢", "🔵"]
     
+    @State var recordStatus: String = "RECORD"
+    @State var displayStatus: String = "DEPTH"
+    
+    @State var timer: Timer?
+    @State var accumulatedTime = 0
+    @State var accumulatedTime_str = "0:0:0"
+    
     var body: some View {
         if !ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth]) {
             Text("Unsupported Device: This app requires the LiDAR Scanner to access the scene's depth.")
         } else {
-            NavigationView {
-                GeometryReader { geometry in
-                    VStack() {
-                        ScrollView(.horizontal) {
-                            VStack() {
-                                MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence)
-                                    .zoomOnTapModifier(height: sizeH, width: sizeW, title: isToUpsampleDepth ? "Upscaled Depth" : "Depth")
-                                MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).zoomOnTapModifier(height: sizeH, width: sizeW, title: "RGB")
-                            }
+            GeometryReader { geometry in
+                VStack() {
+                    Text(self.accumulatedTime_str)
+                    
+                    if self.displayStatus == "DEPTH" {
+                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent)
+                    } else {
+                        MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence)
+                    }
+                    
+                    Button(self.displayStatus) {
+                        if self.displayStatus == "DEPTH" {
+                            self.displayStatus = "RGB"
+                        } else {
+                            self.displayStatus = "DEPTH"
                         }
-                        Spacer()
-                        Button("Record") {
-                            if arProvider.arReceiver.isRecord == false {
-                                let currentTime = Date()
-                                let dateFormater = DateFormatter()
-                                dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
-                                let directory = dateFormater.string(from: currentTime)
-                                // create directory
-                                let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-                                let documentsDirectory = paths[0]
-                                let docURL = URL(string: documentsDirectory)!
-                                let dataPath = docURL.appendingPathComponent(directory)
-                                if !FileManager.default.fileExists(atPath: dataPath.path) {
-                                    do {
-                                        try FileManager.default.createDirectory(atPath: dataPath.path, withIntermediateDirectories: true, attributes: nil)
-                                    } catch {
-                                        print(error.localizedDescription)
-                                    }
-                                }
-                                arProvider.record(isRecord: true, directory: directory)
-                            } else {
-                                arProvider.record(isRecord: false, directory: "")
+                    }
+                    
+                    Button(self.recordStatus) {
+                        if arProvider.arReceiver.isRecord == false {
+                            // timer initialization
+                            self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                                self.accumulatedTime += 1
+                                let (h,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
+                                self.accumulatedTime_str = String(h) + ":" + String(m) + ":" + String(s)
                             }
-                        }
-                        Spacer()
-                        Button("Save") {
+                            self.recordStatus = "STOP"
                             let currentTime = Date()
                             let dateFormater = DateFormatter()
                             dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
                             let directory = dateFormater.string(from: currentTime)
-                            // let directory = "testDiretory"
                             // create directory
                             let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
                             let documentsDirectory = paths[0]
@@ -122,52 +112,25 @@ struct MetalDepthView: View {
                                     print(error.localizedDescription)
                                 }
                             }
-//                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageColor, nil, nil, nil)
-//                            UIImageWriteToSavedPhotosAlbum(arProvider.uiImageDepth, nil, nil, nil)
-                            CVPixelBufferLockBaseAddress(arProvider.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
-                            let depthAddr = CVPixelBufferGetBaseAddress(arProvider.depthImage!)
-                            let depthHeight = CVPixelBufferGetHeight(arProvider.depthImage!)
-                            let depthBpr = CVPixelBufferGetBytesPerRow(arProvider.depthImage!)
-                            let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
-                            
-                            let uiImageColor = arProvider.uiImageColor
-                            
-//                            CVPixelBufferLockBaseAddress(arProvider.colorImage!, CVPixelBufferLockFlags(rawValue: 0))
-//                            let colorAddr = CVPixelBufferGetBaseAddress(arProvider.colorImage!)
-//                            let colorHeight = CVPixelBufferGetHeight(arProvider.colorImage!)
-//                            let colorBpr = CVPixelBufferGetBytesPerRow(arProvider.colorImage!)
-//                            let colorBuffer = Data(bytes: colorAddr!, count: (colorBpr*colorHeight))
-                            
-                            let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arProvider.cameraIntrinsics[x][y] } }
-                            let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arProvider.cameraTransform[x][y] } }
-                            let exposureDuration = "" + arProvider.exposureDuration.description
-                            let exposureOffset = "" + arProvider.exposureOffset.description
-                            
-                            let fileName = "" + arProvider.timeStamp.description
-                            
-                            if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                                let intriURL = dir.appendingPathComponent(directory + "/intri.xml")
-                                let transURL = dir.appendingPathComponent(directory + "/trans.xml")
-                                let duraURL = dir.appendingPathComponent(directory + "/dura.txt")
-                                let offsetURL = dir.appendingPathComponent(directory + "/offset.txt")
-                                let depthBufferURL = dir.appendingPathComponent(directory + "/" + fileName + "_depthBuffer.bin")
-                                let colorJpgURL = dir.appendingPathComponent(directory + "/" + fileName + "_color.jpeg")
-
-                                //writing
-                                do {
-                                    try depthBuffer.write(to: depthBufferURL)
-                                    try uiImageColor.jpegData(compressionQuality: 0.0)!.write(to: colorJpgURL)
-                                    (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
-                                    (cameraTransform as NSArray).write(to: transURL, atomically: false)
-                                    try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)
-                                    try exposureOffset.write(to: offsetURL, atomically: false, encoding: .utf8)
-                                }
-                                catch {/* error handling here */}
-                            }
+                            arProvider.record(isRecord: true, directory: directory)
+                        } else {
+                            self.timer?.invalidate()
+                            self.accumulatedTime = 0
+                            self.accumulatedTime_str = "0:0:0"
+                            self.recordStatus = "RECORD"
+                            arProvider.record(isRecord: false, directory: "")
                         }
-                    }
-                }.navigationViewStyle(StackNavigationViewStyle())
+                    }.padding()
+                        .foregroundColor(.black)
+                        .background(Color(red: 1, green: 0, blue: 0))
+                        .clipShape(Capsule())
+                }
             }
         }
     }
+}
+
+// helper function
+func secondsToHoursMinutesSeconds(_ seconds: Int) -> (Int, Int, Int) {
+    return (seconds / 3600, (seconds % 3600) / 60, (seconds % 3600) % 60)
 }
