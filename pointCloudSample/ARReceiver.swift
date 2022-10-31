@@ -101,7 +101,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             
             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                 do {
-                    try self.depthBufferSequence?.write(to: dir.appendingPathComponent(self.directory + "/" + "depthBufferSequence.bin"))
+                    let compressedDepthBufferSequence = try (self.depthBufferSequence! as NSData).compressed(using: .zlib)
+                    try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depthBufferSequence"))
+//                    try self.depthBufferSequence?.write(to: dir.appendingPathComponent(self.directory + "/" + "depthBufferSequence.bin"))
                 } catch {}
             }
         }
@@ -175,14 +177,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                     let transURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_trans.xml")
                     let duraURL = dir.appendingPathComponent(self.directory + "/dura.txt")
                     let offsetURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_offset.txt")
-//                    let depthBufferURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_depthBuffer.bin")
-//                    let colorJpgURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_color.jpeg")
-//                    let imuURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_imu.xml")
                     
                     //writing
                     do {
-//                        try depthBuffer.write(to: depthBufferURL)
-//                        try uiImageColor.jpegData(compressionQuality: 0.0)!.write(to: colorJpgURL)
                         (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
                         (cameraTransform as NSArray).write(to: transURL, atomically: false)
                         try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)

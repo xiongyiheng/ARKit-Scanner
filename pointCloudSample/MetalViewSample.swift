@@ -76,7 +76,8 @@ struct MetalDepthView: View {
                     if self.displayStatus == "DEPTH" {
                         MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent)
                     } else {
-                        MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence)
+                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).overlay(MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence).opacity(0.5))
+                        
                     }
                     
                     Button(self.displayStatus) {
