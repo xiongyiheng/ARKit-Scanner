@@ -179,10 +179,8 @@ final class ARProvider: ARDataReceiver {
         timeStamp = lastArData!.timeStamp
         exposureDuration = lastArData!.exposureDuration
         exposureOffset = lastArData!.exposureOffset
-//        uiImageDepth = lastArData!.uiImageDepth
         uiImageColor = lastArData!.uiImageColor
         depthImage = lastArData!.depthImage
-//        colorImage = lastArData!.colorImage
         
         if isUseSmoothedDepthForUpsampling {
             depthContent.texture = lastArData?.depthSmoothImage?.texture(withFormat: .r32Float, planeIndex: 0, addToCache: textureCache!)!

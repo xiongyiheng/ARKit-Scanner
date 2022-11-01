@@ -21,7 +21,7 @@ struct VideoSettings {
     
     var outputURL: URL {
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            return dir.appendingPathComponent(videoFilename + "/video").appendingPathExtension(videoFilenameExt)
+            return dir.appendingPathComponent(videoFilename + "/rgb").appendingPathExtension(videoFilenameExt)
         }
         fatalError("URLForDirectory() failed")
     }
@@ -63,6 +63,10 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     
     var motion = CMMotionManager()
     
+    var cameraTransformDic: [String: String] = [:]
+    var exposureOffsetDic: [String: String] = [:]
+    var imuDic: [String: String] = [:]
+    
     // Configure and start the ARSession.
     override init() {
         super.init()
@@ -94,16 +98,51 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             self.motion.startDeviceMotionUpdates()
         } else {
             self.motion.stopDeviceMotionUpdates()
+            
+            // save metadata when finishing recording
+            var metadata: [String: String] = [:]
+            metadata["Scene Name"] = self.directory
+            metadata["Scene Type"] = "Office"
+            metadata["RGB Resolution"] = self.settings.size.width.description + "*" + self.settings.size.height.description
+            metadata["Depth Resolution"] = "256.0" + "*" + "192.0"
+            let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
+            metadata["Intrinstics"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
+            metadata["Exposure Duration"] = "" + arData.exposureDuration.description
+            
+            if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                let encoder = JSONEncoder()
+                if let jsonMetaData = try? encoder.encode(metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic) {
+                    let metadataURL = dir.appendingPathComponent(self.directory + "/metadata.json")
+                    let transURL = dir.appendingPathComponent(self.directory + "/trans.json")
+                    let offsetURL = dir.appendingPathComponent(self.directory + "/offset.json")
+                    let imuURL = dir.appendingPathComponent(self.directory + "/imu.json")
+                    do {
+                        try jsonMetaData.write(to: metadataURL)
+                        try jsonTrans.write(to: transURL)
+                        try jsonOffset.write(to: offsetURL)
+                        try jsonIMU.write(to: imuURL)
+                    } catch {
+                        print("metadata writing errors")
+                    }
+                }
+            }
+            
+            // reinitilize dics
+            self.cameraTransformDic = [String: String]()
+            self.exposureOffsetDic = [String: String]()
+            self.imuDic = [String: String]()
+            
+            // finish video generating
             self.videoWriter!.videoWriterInput.markAsFinished()
             self.videoWriter!.videoWriter.finishWriting {
                 print("finish video generating")
             }
             
+            // save compressed depth values
             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                 do {
                     let compressedDepthBufferSequence = try (self.depthBufferSequence! as NSData).compressed(using: .zlib)
-                    try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depthBufferSequence"))
-//                    try self.depthBufferSequence?.write(to: dir.appendingPathComponent(self.directory + "/" + "depthBufferSequence.bin"))
+                    try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depth"))
                 } catch {}
             }
         }
@@ -124,7 +163,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             arData.timeStamp = frame.timestamp
             arData.exposureDuration = frame.camera.exposureDuration
             arData.exposureOffset = frame.camera.exposureOffset
-
+            
             let ciImageColor = CIImage(cvPixelBuffer: frame.capturedImage)
             let contextColor:CIContext = CIContext.init(options: nil)
             let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
@@ -132,7 +171,6 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             arData.uiImageColor = uiImageColor
             
             if self.isRecord {
-                let fileName = "" + arData.timeStamp.description
                 CVPixelBufferLockBaseAddress(arData.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
                 let depthAddr = CVPixelBufferGetBaseAddress(arData.depthImage!)
                 let depthHeight = CVPixelBufferGetHeight(arData.depthImage!)
@@ -150,44 +188,22 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                 // save a binary sequence
                 if self.frameNum == 0 {
                     self.depthBufferSequence = depthBuffer
+                    
                 } else {
                     self.depthBufferSequence?.append(depthBuffer)
                 }
                 
-                self.frameNum += 1
                 
-                let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
                 let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arData.cameraTransform[x][y] } }
-                let exposureDuration = "" + arData.exposureDuration.description
-                let exposureOffset = "" + arData.exposureOffset.description
+                cameraTransformDic[self.frameNum.description + ""] = "[" + cameraTransform[0].description + "," + cameraTransform[1].description + "," + cameraTransform[2].description + "," + cameraTransform[3].description + "," + cameraTransform[4].description + "," + cameraTransform[5].description + "," + cameraTransform[6].description + "," + cameraTransform[7].description + "," + cameraTransform[8].description + "," + cameraTransform[9].description + "," + cameraTransform[10].description + "," + cameraTransform[11].description + "," + cameraTransform[12].description + "," + cameraTransform[13].description + "," + cameraTransform[14].description + "," + cameraTransform[15].description + "]"
+                exposureOffsetDic[self.frameNum.description + ""] = "" + arData.exposureOffset.description
                 
                 // imu data
                 if let data = self.motion.deviceMotion {
-                    let imu = NSArray(array: [data.rotationRate.x, data.rotationRate.y, data.rotationRate.z, data.userAcceleration.x, data.userAcceleration.y, data.userAcceleration.z, data.magneticField.field.x, data.magneticField.field.y, data.magneticField.field.z, data.attitude.roll, data.attitude.pitch, data.attitude.yaw, data.gravity.x, data.gravity.y, data.gravity.z])
-                    // imu data's timestamp is different from arkit's
-                    let motionFileName = "" + data.timestamp.description
-                    if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                        let imuURL = dir.appendingPathComponent(self.directory + "/" + motionFileName + "_imu.xml")
-                        (imu as NSArray).write(to: imuURL, atomically: false)
-                    }
+                    imuDic[self.frameNum.description + ""] = "[" + data.rotationRate.x.description + "," +  data.rotationRate.y.description + "," + data.rotationRate.z.description + "," +  data.userAcceleration.x.description + "," + data.userAcceleration.y.description + "," +  data.userAcceleration.z.description + "," + data.magneticField.field.x.description + "," + data.magneticField.field.y.description + "," + data.magneticField.field.z.description + "," + data.attitude.roll.description + "," + data.attitude.pitch.description + "," +  data.attitude.yaw.description + "," + data.gravity.x.description + "," + data.gravity.y.description + "," + data.gravity.z.description + "]"
                 }
                 
-                if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                    let intriURL = dir.appendingPathComponent(self.directory + "/intri.xml")
-                    let transURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_trans.xml")
-                    let duraURL = dir.appendingPathComponent(self.directory + "/dura.txt")
-                    let offsetURL = dir.appendingPathComponent(self.directory + "/" + fileName + "_offset.txt")
-                    
-                    //writing
-                    do {
-                        (cameraIntrinsics as NSArray).write(to: intriURL, atomically: false)
-                        (cameraTransform as NSArray).write(to: transURL, atomically: false)
-                        try exposureDuration.write(to: duraURL, atomically: false, encoding: .utf8)
-                        try exposureOffset.write(to: offsetURL, atomically: false, encoding: .utf8)
-//                        (imu as NSArray).write(to: imuURL, atomically: false)
-                    }
-                    catch {/* error handling here */}
-                }
+                self.frameNum += 1
             }
         }
     }
