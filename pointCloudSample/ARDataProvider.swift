@@ -77,10 +77,8 @@ final class ARProvider: ARDataReceiver {
     var timeStamp = TimeInterval()
     var exposureDuration = TimeInterval()
     var exposureOffset = Float()
-//    var uiImageDepth = UIImage()
     var uiImageColor = UIImage()
     var depthImage: CVPixelBuffer?
-//    var colorImage: CVPixelBuffer?
     
     // Enable or disable depth upsampling.
     public var isToUpsampleDepth: Bool = false {
@@ -123,8 +121,8 @@ final class ARProvider: ARDataReceiver {
         arReceiver.pause()
     }
     
-    func record(isRecord: Bool, directory: String) {
-        arReceiver.record(isRecord: isRecord, directory: directory)
+    func record(isRecord: Bool, directory: String, sceneType: String, sceneName: String) {
+        arReceiver.record(isRecord: isRecord, directory: directory, sceneType: sceneType, sceneName: sceneName)
     }
     
     // Initialize the MPS filters, metal pipeline, and Metal textures.

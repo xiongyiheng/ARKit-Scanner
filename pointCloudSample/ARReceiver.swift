@@ -87,7 +87,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         arSession.pause()
     }
     
-    func record(isRecord: Bool, directory: String) {
+    func record(isRecord: Bool, directory: String, sceneType: String, sceneName: String) {
         self.isRecord = isRecord
         self.frameNum = 0
         if self.isRecord == true {
@@ -101,8 +101,8 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             
             // save metadata when finishing recording
             var metadata: [String: String] = [:]
-            metadata["Scene Name"] = self.directory
-            metadata["Scene Type"] = "Office"
+            metadata["Scene Name"] = sceneName
+            metadata["Scene Type"] = sceneType
             metadata["RGB Resolution"] = self.settings.size.width.description + "*" + self.settings.size.height.description
             metadata["Depth Resolution"] = "256.0" + "*" + "192.0"
             let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
