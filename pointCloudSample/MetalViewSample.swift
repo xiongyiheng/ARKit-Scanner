@@ -74,8 +74,7 @@ struct MetalDepthView: View {
             Text("Unsupported Device: This app requires the LiDAR Scanner to access the scene's depth.")
         } else {
             GeometryReader { geometry in
-                VStack() {
-                    
+                VStack(alignment: .leading) {
                     HStack() {
                         if #available(iOS 15.0, *) {
                             TextField(
@@ -85,76 +84,83 @@ struct MetalDepthView: View {
                             .textInputAutocapitalization(.never)
                             .disableAutocorrection(true)
                             .border(.secondary)
+                            
                         } else {
-                                // Fallback on earlier versions
+                            // Fallback on earlier versions
                         }
                         
                         Picker("Select a scene type", selection: $sceneType) {
-                                        ForEach(sceneTypes, id: \.self) {
-                                            Text($0)
-                                        }
-                                    }
-                                    .pickerStyle(.menu)
+                            ForEach(sceneTypes, id: \.self) {
+                                Text($0)
+                            }
+                        }
+                        .pickerStyle(.menu)
                         
                         Text(self.accumulatedTime_str)
+                        
                     }
                     
                     if self.displayStatus == "DEPTH" {
-                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent)
-                    } else {
-                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).overlay(MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence).opacity(0.5))
+                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: 192 * 2, height: 256 * 2)
                         
+                    } else {
+                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: 192 * 2, height: 256 * 2).overlay(MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence).frame(width: 192 * 2, height: 256 * 2).opacity(0.5))
                     }
-                    HStack() {
-                        Button(self.displayStatus) {
-                            if self.displayStatus == "DEPTH" {
-                                self.displayStatus = "RGB"
-                            } else {
-                                self.displayStatus = "DEPTH"
-                            }
+                    
+                }
+                
+            }
+            HStack() {
+                Button(self.displayStatus) {
+                    if self.displayStatus == "DEPTH" {
+                        self.displayStatus = "RGB"
+                    } else {
+                        self.displayStatus = "DEPTH"
+                    }
+                }.padding()
+                    .fixedSize(horizontal: true, vertical: true).opacity(0.7)
+                
+                Button(self.recordStatus) {
+                    if arProvider.arReceiver.isRecord == false {
+                        // timer initialization
+                        self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                            self.accumulatedTime += 1
+                            let (h,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
+                            self.accumulatedTime_str = String(h) + ":" + String(m) + ":" + String(s)
                         }
                         
-                        Button(self.recordStatus) {
-                            if arProvider.arReceiver.isRecord == false {
-                                // timer initialization
-                                self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-                                    self.accumulatedTime += 1
-                                    let (h,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-                                    self.accumulatedTime_str = String(h) + ":" + String(m) + ":" + String(s)
-                                }
-                                
-                                self.recordStatus = "STOP"
-                                let currentTime = Date()
-                                let dateFormater = DateFormatter()
-                                dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
-                                let directory = dateFormater.string(from: currentTime)
-                                
-                                // create directory
-                                let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-                                let documentsDirectory = paths[0]
-                                let docURL = URL(string: documentsDirectory)!
-                                let dataPath = docURL.appendingPathComponent(directory)
-                                if !FileManager.default.fileExists(atPath: dataPath.path) {
-                                    do {
-                                        try FileManager.default.createDirectory(atPath: dataPath.path, withIntermediateDirectories: true, attributes: nil)
-                                    } catch {
-                                        print(error.localizedDescription)
-                                    }
-                                }
-                                arProvider.record(isRecord: true, directory: directory, sceneType: self.sceneType, sceneName: self.sceneName)
-                            } else {
-                                self.timer?.invalidate()
-                                self.accumulatedTime = 0
-                                self.accumulatedTime_str = "0:0:0"
-                                self.recordStatus = "RECORD"
-                                arProvider.record(isRecord: false, directory: "", sceneType: self.sceneType, sceneName: self.sceneName)
+                        self.recordStatus = "STOP"
+                        let currentTime = Date()
+                        let dateFormater = DateFormatter()
+                        dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
+                        let directory = dateFormater.string(from: currentTime)
+                        
+                        // create directory
+                        let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+                        let documentsDirectory = paths[0]
+                        let docURL = URL(string: documentsDirectory)!
+                        let dataPath = docURL.appendingPathComponent(directory)
+                        if !FileManager.default.fileExists(atPath: dataPath.path) {
+                            do {
+                                try FileManager.default.createDirectory(atPath: dataPath.path, withIntermediateDirectories: true, attributes: nil)
+                            } catch {
+                                print(error.localizedDescription)
                             }
-                        }.padding()
-                            .foregroundColor(.black)
-                            .background(Color(red: 1, green: 0, blue: 0))
-                            .clipShape(Capsule())
+                        }
+                        arProvider.record(isRecord: true, directory: directory, sceneType: self.sceneType, sceneName: self.sceneName)
+                    } else {
+                        self.timer?.invalidate()
+                        self.accumulatedTime = 0
+                        self.accumulatedTime_str = "0:0:0"
+                        self.recordStatus = "RECORD"
+                        arProvider.record(isRecord: false, directory: "", sceneType: self.sceneType, sceneName: self.sceneName)
                     }
-                }
+                }.padding()
+                    .foregroundColor(.black)
+                    .background(Color(red: 1, green: 0, blue: 0))
+                    .clipShape(Capsule())
+                    .fixedSize(horizontal: true, vertical: true)
+                    .opacity(0.7)
             }
         }
     }
