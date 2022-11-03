@@ -64,7 +64,7 @@ struct MetalDepthView: View {
     
     @State var timer: Timer?
     @State var accumulatedTime = 0
-    @State var accumulatedTime_str = "00:00:00"
+    @State var accumulatedTime_str = "00:00"
     @State var sceneName: String = ""
     @State var sceneType = "apartment"
     let sceneTypes = ["apartment", "bathroom", "bedroom / hotel", "bookstore / library", "conference room", "copy / mail room", "hallway", "kitchen", "laundry room", "living room / lounge", "office", "storage / basement / garage", "misc"]
@@ -84,6 +84,7 @@ struct MetalDepthView: View {
                             .textInputAutocapitalization(.never)
                             .disableAutocorrection(true)
                             .border(.secondary)
+                            .frame(width: 100)
                             
                         } else {
                             // Fallback on earlier versions
@@ -95,8 +96,9 @@ struct MetalDepthView: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        .frame(width: 120)
                         
-                        Text(self.accumulatedTime_str)
+                        Text(self.accumulatedTime_str).frame(width: 80)
                         
                     }
                     
@@ -117,21 +119,20 @@ struct MetalDepthView: View {
                     } else {
                         self.displayStatus = "DEPTH"
                     }
-                }.padding()
-                    .fixedSize(horizontal: true, vertical: true).opacity(0.7)
+                }.opacity(0.7).frame(width: 80)
                 
                 Button(self.recordStatus) {
                     if arProvider.arReceiver.isRecord == false {
                         // timer initialization
                         self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
                             self.accumulatedTime += 1
-                            let (h,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-                            var h_str = String(h)
+                            let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
+//                            var h_str = String(h)
                             var m_str = String(m)
                             var s_str = String(s)
-                            if h_str.count == 1 {
-                                h_str = "0" + h_str
-                            }
+//                            if h_str.count == 1 {
+//                                h_str = "0" + h_str
+//                            }
                             
                             if m_str.count == 1 {
                                 m_str = "0" + m_str
@@ -141,7 +142,7 @@ struct MetalDepthView: View {
                                 s_str = "0" + s_str
                             }
                                     
-                            self.accumulatedTime_str = h_str + ":" + m_str + ":" + s_str
+//                            self.accumulatedTime_str = h_str + ":" + m_str + ":" + s_str
                         }
                         
                         self.recordStatus = "STOP"
@@ -166,7 +167,7 @@ struct MetalDepthView: View {
                     } else {
                         self.timer?.invalidate()
                         self.accumulatedTime = 0
-                        self.accumulatedTime_str = "00:00:00"
+                        self.accumulatedTime_str = "00:00"
                         self.recordStatus = "RECORD"
                         arProvider.record(isRecord: false, directory: "", sceneType: self.sceneType, sceneName: self.sceneName)
                     }
@@ -174,8 +175,8 @@ struct MetalDepthView: View {
                     .foregroundColor(.black)
                     .background(Color(red: 1, green: 0, blue: 0))
                     .clipShape(Capsule())
-                    .fixedSize(horizontal: true, vertical: true)
                     .opacity(0.7)
+                    .frame(width: 100)
             }
         }
     }

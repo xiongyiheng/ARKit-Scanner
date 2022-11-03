@@ -100,7 +100,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             self.motion.startDeviceMotionUpdates()
         } else {
             self.motion.stopDeviceMotionUpdates()
-            
+            pause()
             // save metadata when finishing recording
             var metadata: [String: String] = [:]
             metadata["scene_name"] = sceneName
@@ -149,6 +149,8 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                     try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depth.bin"))
                 } catch {}
             }
+            
+            start()
         }
     }
     
