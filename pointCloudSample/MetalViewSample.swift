@@ -64,7 +64,7 @@ struct MetalDepthView: View {
     
     @State var timer: Timer?
     @State var accumulatedTime = 0
-    @State var accumulatedTime_str = "0:0:0"
+    @State var accumulatedTime_str = "00:00:00"
     @State var sceneName: String = ""
     @State var sceneType = "apartment"
     let sceneTypes = ["apartment", "bathroom", "bedroom / hotel", "bookstore / library", "conference room", "copy / mail room", "hallway", "kitchen", "laundry room", "living room / lounge", "office", "storage / basement / garage", "misc"]
@@ -126,7 +126,22 @@ struct MetalDepthView: View {
                         self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
                             self.accumulatedTime += 1
                             let (h,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-                            self.accumulatedTime_str = String(h) + ":" + String(m) + ":" + String(s)
+                            var h_str = String(h)
+                            var m_str = String(m)
+                            var s_str = String(s)
+                            if h_str.count == 1 {
+                                h_str = "0" + h_str
+                            }
+                            
+                            if m_str.count == 1 {
+                                m_str = "0" + m_str
+                            }
+                            
+                            if s_str.count == 1 {
+                                s_str = "0" + s_str
+                            }
+                                    
+                            self.accumulatedTime_str = h_str + ":" + m_str + ":" + s_str
                         }
                         
                         self.recordStatus = "STOP"
@@ -151,7 +166,7 @@ struct MetalDepthView: View {
                     } else {
                         self.timer?.invalidate()
                         self.accumulatedTime = 0
-                        self.accumulatedTime_str = "0:0:0"
+                        self.accumulatedTime_str = "00:00:00"
                         self.recordStatus = "RECORD"
                         arProvider.record(isRecord: false, directory: "", sceneType: self.sceneType, sceneName: self.sceneName)
                     }
