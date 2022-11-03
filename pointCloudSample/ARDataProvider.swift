@@ -122,7 +122,7 @@ final class ARProvider: ARDataReceiver {
     }
     
     func record(isRecord: Bool, directory: String, sceneType: String, sceneName: String) {
-        arReceiver.record(isRecord: isRecord, directory: directory, sceneType: sceneType, sceneName: sceneName)
+        arReceiver.record(isRecord: isRecord, directory: directory, sceneType: sceneType, sceneName: sceneName, colorWidth: origColorWidth, colorHeight: origColorHeight, depthWidth: origDepthWidth, depthHeight: origDepthHeight)
     }
     
     // Initialize the MPS filters, metal pipeline, and Metal textures.

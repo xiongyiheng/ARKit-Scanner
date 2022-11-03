@@ -66,7 +66,7 @@ struct MetalDepthView: View {
     @State var accumulatedTime = 0
     @State var accumulatedTime_str = "0:0:0"
     @State var sceneName: String = ""
-    @State var sceneType = ""
+    @State var sceneType = "apartment"
     let sceneTypes = ["apartment", "bathroom", "bedroom / hotel", "bookstore / library", "conference room", "copy / mail room", "hallway", "kitchen", "laundry room", "living room / lounge", "office", "storage / basement / garage", "misc"]
     
     var body: some View {
@@ -89,7 +89,7 @@ struct MetalDepthView: View {
                                 // Fallback on earlier versions
                         }
                         
-                        Picker("Select a paint color", selection: $sceneType) {
+                        Picker("Select a scene type", selection: $sceneType) {
                                         ForEach(sceneTypes, id: \.self) {
                                             Text($0)
                                         }

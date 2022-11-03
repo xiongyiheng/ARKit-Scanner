@@ -87,12 +87,14 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         arSession.pause()
     }
     
-    func record(isRecord: Bool, directory: String, sceneType: String, sceneName: String) {
+    func record(isRecord: Bool, directory: String, sceneType: String, sceneName: String, colorWidth: Int, colorHeight: Int, depthWidth: Int, depthHeight: Int) {
         self.isRecord = isRecord
         self.frameNum = 0
         if self.isRecord == true {
             self.directory = directory
             self.settings.videoFilename = directory
+            self.settings.size.width = CGFloat(colorWidth)
+            self.settings.size.height = CGFloat(colorHeight)
             self.videoWriter = VideoWriter(videoSettings: self.settings)
             self.videoWriter!.start()
             self.motion.startDeviceMotionUpdates()
@@ -101,13 +103,15 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             
             // save metadata when finishing recording
             var metadata: [String: String] = [:]
-            metadata["Scene Name"] = sceneName
-            metadata["Scene Type"] = sceneType
-            metadata["RGB Resolution"] = self.settings.size.width.description + "*" + self.settings.size.height.description
-            metadata["Depth Resolution"] = "256.0" + "*" + "192.0"
+            metadata["scene_name"] = sceneName
+            metadata["scene_type"] = sceneType
+            metadata["color_width"] = colorWidth.description
+            metadata["color_height"] =  colorHeight.description
+            metadata["depth_width"] = depthWidth.description
+            metadata["depth_height"] = depthHeight.description
             let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
-            metadata["Intrinstics"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
-            metadata["Exposure Duration"] = "" + arData.exposureDuration.description
+            metadata["intrinstics"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
+            metadata["exposure_duration"] = arData.exposureDuration.description
             
             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                 let encoder = JSONEncoder()
@@ -142,7 +146,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                 do {
                     let compressedDepthBufferSequence = try (self.depthBufferSequence! as NSData).compressed(using: .zlib)
-                    try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depth"))
+                    try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depth.bin"))
                 } catch {}
             }
         }
