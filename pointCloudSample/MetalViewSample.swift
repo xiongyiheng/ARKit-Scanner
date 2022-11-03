@@ -142,7 +142,7 @@ struct MetalDepthView: View {
                                 s_str = "0" + s_str
                             }
                                     
-//                            self.accumulatedTime_str = h_str + ":" + m_str + ":" + s_str
+                            self.accumulatedTime_str = m_str + ":" + s_str
                         }
                         
                         self.recordStatus = "STOP"
