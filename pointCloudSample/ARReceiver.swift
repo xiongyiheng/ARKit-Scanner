@@ -110,7 +110,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             metadata["depth_width"] = depthWidth.description
             metadata["depth_height"] = depthHeight.description
             let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
-            metadata["intrinstics"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
+            metadata["intrinsic"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
             metadata["exposure_duration"] = arData.exposureDuration.description
             
             if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {

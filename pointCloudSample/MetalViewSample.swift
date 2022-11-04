@@ -67,7 +67,7 @@ struct MetalDepthView: View {
     @State var accumulatedTime_str = "00:00"
     @State var sceneName: String = ""
     @State var sceneType = "apartment"
-    let sceneTypes = ["apartment", "bathroom", "bedroom / hotel", "bookstore / library", "conference room", "copy / mail room", "hallway", "kitchen", "laundry room", "living room / lounge", "office", "storage / basement / garage", "misc"]
+    let sceneTypes = ["apartment", "bathroom", "bedroom / hotel", "bookstore / library", "conference room", "copy / mail room", "hallway", "kitchen", "laundry room", "living room / lounge", "office", "storage / basement / garage", "classroom", "misc"]
     
     var body: some View {
         if !ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth]) {
