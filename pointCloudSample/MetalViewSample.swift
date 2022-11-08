@@ -90,7 +90,7 @@ struct MetalDepthView: View {
                             // Fallback on earlier versions
                         }
                         
-                        Picker("Select a scene type", selection: $sceneType) {
+                        Picker("", selection: $sceneType) {
                             ForEach(sceneTypes, id: \.self) {
                                 Text($0)
                             }
@@ -148,8 +148,8 @@ struct MetalDepthView: View {
                         self.recordStatus = "STOP"
                         let currentTime = Date()
                         let dateFormater = DateFormatter()
-                        dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
-                        let directory = dateFormater.string(from: currentTime)
+                        dateFormater.dateFormat = "dd-MM-YY HH:mm:ss"
+                        let directory = sceneName + dateFormater.string(from: currentTime)
                         
                         // create directory
                         let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
