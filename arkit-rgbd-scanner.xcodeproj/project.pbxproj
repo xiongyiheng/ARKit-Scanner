@@ -25,7 +25,7 @@
 		862BDBE3A68AAEF29B3782C1 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9F60FDDEE7A7673198CD3F7A /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		AED376192757534400C631A2 /* EnvironmentVariables.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentVariables.swift; sourceTree = "<group>"; };
-		E4DF0AFE24CF1A1A0024833B /* pointCloudSample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = pointCloudSample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4DF0AFE24CF1A1A0024833B /* arkit-rgbd-scanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "arkit-rgbd-scanner.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4DF0B0724CF1A1D0024833B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E4DF0B0C24CF1A1D0024833B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E4DF0B1224CF1A7F0024833B /* MetalViewSample.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MetalViewSample.swift; sourceTree = "<group>"; };
@@ -78,7 +78,7 @@
 		E4DF0AFF24CF1A1A0024833B /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E4DF0AFE24CF1A1A0024833B /* pointCloudSample.app */,
+				E4DF0AFE24CF1A1A0024833B /* arkit-rgbd-scanner.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -104,9 +104,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		E4DF0AFD24CF1A1A0024833B /* pointCloudSample */ = {
+		E4DF0AFD24CF1A1A0024833B /* arkit-rgbd-scanner */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E4DF0B0F24CF1A1D0024833B /* Build configuration list for PBXNativeTarget "pointCloudSample" */;
+			buildConfigurationList = E4DF0B0F24CF1A1D0024833B /* Build configuration list for PBXNativeTarget "arkit-rgbd-scanner" */;
 			buildPhases = (
 				E4DF0AFA24CF1A1A0024833B /* Sources */,
 				E4DF0AFB24CF1A1A0024833B /* Frameworks */,
@@ -116,9 +116,9 @@
 			);
 			dependencies = (
 			);
-			name = pointCloudSample;
+			name = "arkit-rgbd-scanner";
 			productName = pointCloudSample;
-			productReference = E4DF0AFE24CF1A1A0024833B /* pointCloudSample.app */;
+			productReference = E4DF0AFE24CF1A1A0024833B /* arkit-rgbd-scanner.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -137,7 +137,7 @@
 					};
 				};
 			};
-			buildConfigurationList = E4DF0AF924CF1A1A0024833B /* Build configuration list for PBXProject "pointCloudSample" */;
+			buildConfigurationList = E4DF0AF924CF1A1A0024833B /* Build configuration list for PBXProject "arkit-rgbd-scanner" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -150,7 +150,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				E4DF0AFD24CF1A1A0024833B /* pointCloudSample */,
+				E4DF0AFD24CF1A1A0024833B /* arkit-rgbd-scanner */,
 			);
 		};
 /* End PBXProject section */
@@ -356,7 +356,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		E4DF0AF924CF1A1A0024833B /* Build configuration list for PBXProject "pointCloudSample" */ = {
+		E4DF0AF924CF1A1A0024833B /* Build configuration list for PBXProject "arkit-rgbd-scanner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E4DF0B0D24CF1A1D0024833B /* Debug */,
@@ -365,7 +365,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E4DF0B0F24CF1A1D0024833B /* Build configuration list for PBXNativeTarget "pointCloudSample" */ = {
+		E4DF0B0F24CF1A1D0024833B /* Build configuration list for PBXNativeTarget "arkit-rgbd-scanner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E4DF0B1024CF1A1D0024833B /* Debug */,
