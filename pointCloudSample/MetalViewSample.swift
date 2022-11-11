@@ -127,12 +127,12 @@ struct MetalDepthView: View {
                         self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
                             self.accumulatedTime += 1
                             let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-//                            var h_str = String(h)
+                            //                            var h_str = String(h)
                             var m_str = String(m)
                             var s_str = String(s)
-//                            if h_str.count == 1 {
-//                                h_str = "0" + h_str
-//                            }
+                            //                            if h_str.count == 1 {
+                            //                                h_str = "0" + h_str
+                            //                            }
                             
                             if m_str.count == 1 {
                                 m_str = "0" + m_str
@@ -141,7 +141,7 @@ struct MetalDepthView: View {
                             if s_str.count == 1 {
                                 s_str = "0" + s_str
                             }
-                                    
+
                             self.accumulatedTime_str = m_str + ":" + s_str
                         }
                         
@@ -149,7 +149,7 @@ struct MetalDepthView: View {
                         let currentTime = Date()
                         let dateFormater = DateFormatter()
                         dateFormater.dateFormat = "dd-MM-YY HH:mm:ss"
-                        let directory = sceneName + dateFormater.string(from: currentTime)
+                        let directory = sceneName + " " + dateFormater.string(from: currentTime)
                         
                         // create directory
                         let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
