@@ -44,3 +44,7 @@ IMU data for each frame in the format of:
 {<frameID>:"[0.0006190282292664051,-0.009413435123860836,-0.0021445199381560087,-0.006018027663230896,-0.008715152740478516,-0.0023995935916900635,0.0,0.0,0.0,0.5224416595374864,1.2367715496437015,-0.2551249550778954,0.16359558701515198,-0.9447304606437683,-0.2841145992279053]",...}
 ```
 Each entry represents imu data in the order of: x rotation rate, y rotation rate, z rotation rate, x user-caused acceleration vector, y user-caused acceleration vector, z user-caused acceleration vector, x magnetic field, y magnetic field, z magnetic field, roll, pitch, yaw, x gravity vector, y gravity vector, z gravity vector.
+
+
+[![Watch the video]](https://youtube.com/shorts/ZB822Hd0jjs?feature=share)
+
