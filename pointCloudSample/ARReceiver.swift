@@ -27,6 +27,48 @@ struct VideoSettings {
     }
 }
 
+class BinaryFrameDataWriter {
+    var fileHandle: FileHandle?
+    init(depthURL: URL, height: Int, width: Int) {
+        print(depthURL.path)
+
+        do {
+            FileManager.default.createFile(atPath: depthURL.path, contents: nil, attributes: nil)
+            try self.fileHandle = FileHandle(forWritingTo: depthURL)
+        } catch let error as NSError {
+            print("FITFile >>> File open failed: \(error)")
+        }
+    }
+    
+    func writerFrame(frameData: Data, compress: Bool) {
+        if let fileHandle = self.fileHandle {
+            if compress {
+                do {
+//                    print("original size: \(frameData.count) bytes")
+                    let compressedFrameData = try (frameData as NSData).compressed(using: .zlib)
+//                    print("zlib compressed size: \(compressedFrameData.count) bytes")
+                    var size = Int32(compressedFrameData.count);
+                    fileHandle.write(Data(bytes: &size, count: MemoryLayout.size(ofValue: size)))
+                    fileHandle.write(compressedFrameData as Data)
+                } catch {
+                    print ("Compression error: \(error)")
+                }
+            }
+            else {
+                fileHandle.write(frameData)
+            }
+            do {
+                try fileHandle.synchronize()
+            } catch {
+                print(error)
+            }
+        }
+        else {
+            print("No handle")
+        }
+    }
+}
+
 // Receive the newest AR data from an `ARReceiver`.
 protocol ARDataReceiver: AnyObject {
     func onNewARData(arData: ARData)
@@ -59,10 +101,11 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     var frameNum = 0
     var settings = VideoSettings()
     var videoWriter: VideoWriter?
-    var depthBufferSequence: Data?
-    
+    var depthWriter: BinaryFrameDataWriter?
+
     var motion = CMMotionManager()
-    
+
+    var metadata: [String: String] = [:]
     var cameraTransformDic: [String: String] = [:]
     var exposureOffsetDic: [String: String] = [:]
     var imuDic: [String: String] = [:]
@@ -86,119 +129,138 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     func pause() {
         arSession.pause()
     }
-    
-    func record(isRecord: Bool, directory: String, sceneType: String, sceneName: String, colorWidth: Int, colorHeight: Int, depthWidth: Int, depthHeight: Int) {
-        self.isRecord = isRecord
-        self.frameNum = 0
-        if self.isRecord == true {
-            self.directory = directory
-            self.settings.videoFilename = directory
-            self.settings.size.width = CGFloat(colorWidth)
-            self.settings.size.height = CGFloat(colorHeight)
-            self.videoWriter = VideoWriter(videoSettings: self.settings)
-            self.videoWriter!.start()
-            self.motion.startDeviceMotionUpdates()
-        } else {
-            self.motion.stopDeviceMotionUpdates()
-            pause()
-            // save metadata when finishing recording
-            var metadata: [String: String] = [:]
-            metadata["scene_name"] = sceneName
-            metadata["scene_type"] = sceneType
-            metadata["color_width"] = colorWidth.description
-            metadata["color_height"] =  colorHeight.description
-            metadata["depth_width"] = depthWidth.description
-            metadata["depth_height"] = depthHeight.description
-            let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
-            metadata["intrinsic"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
-            metadata["exposure_duration"] = arData.exposureDuration.description
-            
-            if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                let encoder = JSONEncoder()
-                if let jsonMetaData = try? encoder.encode(metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic) {
-                    let metadataURL = dir.appendingPathComponent(self.directory + "/metadata.json")
-                    let transURL = dir.appendingPathComponent(self.directory + "/trans.json")
-                    let offsetURL = dir.appendingPathComponent(self.directory + "/offset.json")
-                    let imuURL = dir.appendingPathComponent(self.directory + "/imu.json")
-                    do {
-                        try jsonMetaData.write(to: metadataURL)
-                        try jsonTrans.write(to: transURL)
-                        try jsonOffset.write(to: offsetURL)
-                        try jsonIMU.write(to: imuURL)
-                    } catch {
-                        print("metadata writing errors")
-                    }
+
+    func startRecord(sceneName: String, sceneType: String, colorWidth: Int, colorHeight: Int, depthWidth: Int, depthHeight: Int) {
+        let currentTime = Date()
+        let dateFormater = DateFormatter()
+        dateFormater.dateFormat = "dd-MM-YY HH:mm:ss"
+        self.directory = sceneName + " " + dateFormater.string(from: currentTime)
+        
+        // create directory
+        if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let folderPath = dir.appendingPathComponent(self.directory)
+            if !FileManager.default.fileExists(atPath: folderPath.path) {
+                do {
+                    print("Create folder \(folderPath.path)")
+                    try FileManager.default.createDirectory(atPath: folderPath.path, withIntermediateDirectories: true, attributes: nil)
+                } catch {
+                    print(error)
                 }
             }
-            
-            // reinitilize dics
-            self.cameraTransformDic = [String: String]()
-            self.exposureOffsetDic = [String: String]()
-            self.imuDic = [String: String]()
-            
-            // finish video generating
-            self.videoWriter!.videoWriterInput.markAsFinished()
-            self.videoWriter!.videoWriter.finishWriting {
-                print("finish video generating")
-            }
-            
-            // save compressed depth values
-            if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                do {
-                    let compressedDepthBufferSequence = try (self.depthBufferSequence! as NSData).compressed(using: .zlib)
-                    try compressedDepthBufferSequence.write(to: dir.appendingPathComponent(self.directory + "/" + "depth.bin"))
-                } catch {}
-            }
-            
-            start()
+            let depthURL = dir.appendingPathComponent(self.directory + "/depth.bin")
+            self.depthWriter = BinaryFrameDataWriter(depthURL: depthURL, height: depthHeight, width: depthWidth)
         }
+        self.settings.videoFilename = directory
+        self.settings.size.width = CGFloat(colorWidth)
+        self.settings.size.height = CGFloat(colorHeight)
+        self.videoWriter = VideoWriter(videoSettings: self.settings)
+        self.videoWriter!.start()
+
+        self.metadata = [:]
+        self.metadata["scene_name"] = sceneName
+        self.metadata["scene_type"] = sceneType
+        self.metadata["color_width"] = colorWidth.description
+        self.metadata["color_height"] =  colorHeight.description
+        self.metadata["depth_width"] = depthWidth.description
+        self.metadata["depth_height"] = depthHeight.description
+
+        self.isRecord = true
+        self.frameNum = 0
+
+    }
+
+    func endRecord() {
+        self.motion.stopDeviceMotionUpdates()
+        pause()
+        self.isRecord = false
+        // save metadata when finishing recording
+
+        let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
+        self.metadata["intrinsic"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
+        self.metadata["exposure_duration"] = arData.exposureDuration.description
+        
+        if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let encoder = JSONEncoder()
+            if let jsonMetaData = try? encoder.encode(self.metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic) {
+                let metadataURL = dir.appendingPathComponent(self.directory + "/metadata.json")
+                let transURL = dir.appendingPathComponent(self.directory + "/trans.json")
+                let offsetURL = dir.appendingPathComponent(self.directory + "/offset.json")
+                let imuURL = dir.appendingPathComponent(self.directory + "/imu.json")
+                print(metadataURL.path)
+                do {
+                    try jsonMetaData.write(to: metadataURL)
+                    try jsonTrans.write(to: transURL)
+                    try jsonOffset.write(to: offsetURL)
+                    try jsonIMU.write(to: imuURL)
+                } catch {
+                    print("metadata writing errors")
+                }
+            }
+        }
+
+        // reinitilize dics
+        self.cameraTransformDic = [String: String]()
+        self.exposureOffsetDic = [String: String]()
+        self.imuDic = [String: String]()
+        
+        // finish video generating
+        self.videoWriter!.videoWriterInput.markAsFinished()
+        self.videoWriter!.videoWriter.finishWriting {
+            print("finish video generating")
+        }
+        start()
+        self.motion.startDeviceMotionUpdates()
     }
     
+    func readARData(frame: ARFrame) {
+        arData.depthImage = frame.sceneDepth?.depthMap
+        arData.depthSmoothImage = frame.smoothedSceneDepth?.depthMap
+        arData.confidenceImage = frame.sceneDepth?.confidenceMap
+        arData.confidenceSmoothImage = frame.smoothedSceneDepth?.confidenceMap
+        arData.colorImage = frame.capturedImage
+        arData.cameraIntrinsics = frame.camera.intrinsics
+        arData.cameraResolution = frame.camera.imageResolution
+        delegate?.onNewARData(arData: arData)
+        arData.cameraTransform = frame.camera.transform
+        arData.timeStamp = frame.timestamp
+        arData.exposureDuration = frame.camera.exposureDuration
+        arData.exposureOffset = frame.camera.exposureOffset
+    }
+
     // Send required data from `ARFrame` to the delegate class via the `onNewARData` callback.
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         if(frame.sceneDepth != nil) && (frame.smoothedSceneDepth != nil) {
-            arData.depthImage = frame.sceneDepth?.depthMap
-            arData.depthSmoothImage = frame.smoothedSceneDepth?.depthMap
-            arData.confidenceImage = frame.sceneDepth?.confidenceMap
-            arData.confidenceSmoothImage = frame.smoothedSceneDepth?.confidenceMap
-            arData.colorImage = frame.capturedImage
-            arData.cameraIntrinsics = frame.camera.intrinsics
-            arData.cameraResolution = frame.camera.imageResolution
-            delegate?.onNewARData(arData: arData)
-            arData.cameraTransform = frame.camera.transform
-            arData.timeStamp = frame.timestamp
-            arData.exposureDuration = frame.camera.exposureDuration
-            arData.exposureOffset = frame.camera.exposureOffset
-            
-            let ciImageColor = CIImage(cvPixelBuffer: frame.capturedImage)
-            let contextColor:CIContext = CIContext.init(options: nil)
-            let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
-            let uiImageColor:UIImage = UIImage(cgImage: cgImageColor, scale: 1, orientation: UIImage.Orientation.up)
-            arData.uiImageColor = uiImageColor
-            
+            readARData(frame: frame)
+
+            if self.videoWriter == nil || !self.videoWriter!.isReadyForData {
+                return
+            }
+
             if self.isRecord {
+//                let ciImageColor = CIImage(cvPixelBuffer: frame.capturedImage)
+//                let contextColor:CIContext = CIContext.init(options: nil)
+//                let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
+//                let uiImageColor:UIImage = UIImage(cgImage: cgImageColor, scale: 1, orientation: UIImage.Orientation.up)
+
                 CVPixelBufferLockBaseAddress(arData.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
                 let depthAddr = CVPixelBufferGetBaseAddress(arData.depthImage!)
                 let depthHeight = CVPixelBufferGetHeight(arData.depthImage!)
                 let depthBpr = CVPixelBufferGetBytesPerRow(arData.depthImage!)
                 let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
-                
+                if let depthWriter = self.depthWriter {
+                    depthWriter.writerFrame(frameData: depthBuffer, compress: true)
+                }
+                CVPixelBufferUnlockBaseAddress(arData.depthImage!,  CVPixelBufferLockFlags(rawValue: 0));
                 // save as video
                 let frameDuration = CMTimeMake(value: 1, timescale: settings.fps)
                 let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(self.frameNum))
+                if self.frameNum < 10 {
+                    print(presentationTime)
+                }
                 let success = self.videoWriter!.addBuffer(pixelBuffer: arData.colorImage!, withPresentationTime: presentationTime)
                 if success == false {
                     fatalError("addBuffer() failed")
                 }
-                
-                // save a binary sequence
-                if self.frameNum == 0 {
-                    self.depthBufferSequence = depthBuffer
-                    
-                } else {
-                    self.depthBufferSequence?.append(depthBuffer)
-                }
-                
                 
                 let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arData.cameraTransform[x][y] } }
                 cameraTransformDic[self.frameNum.description + ""] = "[" + cameraTransform[0].description + "," + cameraTransform[1].description + "," + cameraTransform[2].description + "," + cameraTransform[3].description + "," + cameraTransform[4].description + "," + cameraTransform[5].description + "," + cameraTransform[6].description + "," + cameraTransform[7].description + "," + cameraTransform[8].description + "," + cameraTransform[9].description + "," + cameraTransform[10].description + "," + cameraTransform[11].description + "," + cameraTransform[12].description + "," + cameraTransform[13].description + "," + cameraTransform[14].description + "," + cameraTransform[15].description + "]"

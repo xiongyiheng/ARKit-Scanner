@@ -90,7 +90,7 @@ struct MetalDepthView: View {
                             // Fallback on earlier versions
                         }
                         
-                        Picker("Select a scene type", selection: $sceneType) {
+                        Picker("", selection: $sceneType) {
                             ForEach(sceneTypes, id: \.self) {
                                 Text($0)
                             }
@@ -127,49 +127,28 @@ struct MetalDepthView: View {
                         self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
                             self.accumulatedTime += 1
                             let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-//                            var h_str = String(h)
                             var m_str = String(m)
                             var s_str = String(s)
-//                            if h_str.count == 1 {
-//                                h_str = "0" + h_str
-//                            }
-                            
                             if m_str.count == 1 {
                                 m_str = "0" + m_str
                             }
-                            
                             if s_str.count == 1 {
                                 s_str = "0" + s_str
                             }
-                                    
+
                             self.accumulatedTime_str = m_str + ":" + s_str
                         }
                         
                         self.recordStatus = "STOP"
-                        let currentTime = Date()
-                        let dateFormater = DateFormatter()
-                        dateFormater.dateFormat = "dd-MM-YY:HH:mm:ss"
-                        let directory = dateFormater.string(from: currentTime)
-                        
-                        // create directory
-                        let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-                        let documentsDirectory = paths[0]
-                        let docURL = URL(string: documentsDirectory)!
-                        let dataPath = docURL.appendingPathComponent(directory)
-                        if !FileManager.default.fileExists(atPath: dataPath.path) {
-                            do {
-                                try FileManager.default.createDirectory(atPath: dataPath.path, withIntermediateDirectories: true, attributes: nil)
-                            } catch {
-                                print(error.localizedDescription)
-                            }
-                        }
-                        arProvider.record(isRecord: true, directory: directory, sceneType: self.sceneType, sceneName: self.sceneName)
+
+                        arProvider.startRecord(sceneName: sceneName, sceneType: sceneType)
+
                     } else {
                         self.timer?.invalidate()
                         self.accumulatedTime = 0
                         self.accumulatedTime_str = "00:00"
                         self.recordStatus = "RECORD"
-                        arProvider.record(isRecord: false, directory: "", sceneType: self.sceneType, sceneName: self.sceneName)
+                        arProvider.endRecord()
                     }
                 }.padding()
                     .foregroundColor(.black)
