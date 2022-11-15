@@ -21,7 +21,7 @@ The scanner app acquires RGB-D scans using iPhone LiDAR sensor and ARKit API, st
 ```
 
 **depth (`*.bin`)**:
-Compressed stream of depth frames from iPhone's LiDAR.  Please refer to the [postprocessing](postprocessing.ipynb) code for an example of how to parse the data.
+Compressed stream of depth frames from iPhone's LiDAR.  Please refer to the [postprocessing](https://github.com/liu115/ARKit-Scanner/tree/main/python) code for an example of how to parse the data.
 
 **rgb (`*.mp4`)**:
 A sequence of RGB frames in the form of mp4.
