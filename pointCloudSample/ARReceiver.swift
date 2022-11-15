@@ -107,6 +107,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
 
     var metadata: [String: String] = [:]
     var cameraTransformDic: [String: String] = [:]
+    var intrinsicDic: [String: String] = [:]
     var exposureOffsetDic: [String: String] = [:]
     var imuDic: [String: String] = [:]
     
@@ -135,6 +136,8 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         let dateFormater = DateFormatter()
         dateFormater.dateFormat = "dd-MM-YY HH:mm:ss"
         self.directory = sceneName + " " + dateFormater.string(from: currentTime)
+        
+        self.motion.startDeviceMotionUpdates()
         
         // create directory
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
@@ -173,23 +176,23 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         self.motion.stopDeviceMotionUpdates()
         pause()
         self.isRecord = false
-        // save metadata when finishing recording
-
-        let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
-        self.metadata["intrinsic"] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
-        self.metadata["exposure_duration"] = arData.exposureDuration.description
         
+        // save metadata when finishing recording
+        self.metadata["exposure_duration"] = arData.exposureDuration.description
+
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let encoder = JSONEncoder()
-            if let jsonMetaData = try? encoder.encode(self.metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic) {
+            if let jsonMetaData = try? encoder.encode(self.metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonIntrinsic = try? encoder.encode(self.intrinsicDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic) {
                 let metadataURL = dir.appendingPathComponent(self.directory + "/metadata.json")
                 let transURL = dir.appendingPathComponent(self.directory + "/trans.json")
+                let intriURL = dir.appendingPathComponent(self.directory + "/intri.json")
                 let offsetURL = dir.appendingPathComponent(self.directory + "/offset.json")
                 let imuURL = dir.appendingPathComponent(self.directory + "/imu.json")
                 print(metadataURL.path)
                 do {
                     try jsonMetaData.write(to: metadataURL)
                     try jsonTrans.write(to: transURL)
+                    try jsonIntrinsic.write(to: intriURL)
                     try jsonOffset.write(to: offsetURL)
                     try jsonIMU.write(to: imuURL)
                 } catch {
@@ -200,6 +203,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
 
         // reinitilize dics
         self.cameraTransformDic = [String: String]()
+        self.intrinsicDic = [String: String]()
         self.exposureOffsetDic = [String: String]()
         self.imuDic = [String: String]()
         
@@ -237,10 +241,6 @@ final class ARReceiver: NSObject, ARSessionDelegate {
             }
 
             if self.isRecord {
-//                let ciImageColor = CIImage(cvPixelBuffer: frame.capturedImage)
-//                let contextColor:CIContext = CIContext.init(options: nil)
-//                let cgImageColor:CGImage = contextColor.createCGImage(ciImageColor, from: ciImageColor.extent)!
-//                let uiImageColor:UIImage = UIImage(cgImage: cgImageColor, scale: 1, orientation: UIImage.Orientation.up)
 
                 CVPixelBufferLockBaseAddress(arData.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
                 let depthAddr = CVPixelBufferGetBaseAddress(arData.depthImage!)
@@ -263,12 +263,16 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                 }
                 
                 let cameraTransform = (0..<4).flatMap { x in (0..<4).map { y in arData.cameraTransform[x][y] } }
-                cameraTransformDic[self.frameNum.description + ""] = "[" + cameraTransform[0].description + "," + cameraTransform[1].description + "," + cameraTransform[2].description + "," + cameraTransform[3].description + "," + cameraTransform[4].description + "," + cameraTransform[5].description + "," + cameraTransform[6].description + "," + cameraTransform[7].description + "," + cameraTransform[8].description + "," + cameraTransform[9].description + "," + cameraTransform[10].description + "," + cameraTransform[11].description + "," + cameraTransform[12].description + "," + cameraTransform[13].description + "," + cameraTransform[14].description + "," + cameraTransform[15].description + "]"
-                exposureOffsetDic[self.frameNum.description + ""] = "" + arData.exposureOffset.description
+                self.cameraTransformDic[arData.timeStamp.description] = "[" + cameraTransform[0].description + "," + cameraTransform[1].description + "," + cameraTransform[2].description + "," + cameraTransform[3].description + "," + cameraTransform[4].description + "," + cameraTransform[5].description + "," + cameraTransform[6].description + "," + cameraTransform[7].description + "," + cameraTransform[8].description + "," + cameraTransform[9].description + "," + cameraTransform[10].description + "," + cameraTransform[11].description + "," + cameraTransform[12].description + "," + cameraTransform[13].description + "," + cameraTransform[14].description + "," + cameraTransform[15].description + "]"
+                self.exposureOffsetDic[arData.timeStamp.description] = arData.exposureOffset.description
+                
+                let cameraIntrinsics = (0..<3).flatMap { x in (0..<3).map { y in arData.cameraIntrinsics[x][y] } }
+                self.intrinsicDic[arData.timeStamp.description] = "[" + cameraIntrinsics[0].description + "," + cameraIntrinsics[1].description + "," + cameraIntrinsics[2].description + "," + cameraIntrinsics[3].description + "," + cameraIntrinsics[4].description + "," + cameraIntrinsics[5].description + "," + cameraIntrinsics[6].description + "," + cameraIntrinsics[7].description + "," + cameraIntrinsics[8].description + "]"
                 
                 // imu data
                 if let data = self.motion.deviceMotion {
-                    imuDic[self.frameNum.description + ""] = "[" + data.rotationRate.x.description + "," +  data.rotationRate.y.description + "," + data.rotationRate.z.description + "," +  data.userAcceleration.x.description + "," + data.userAcceleration.y.description + "," +  data.userAcceleration.z.description + "," + data.magneticField.field.x.description + "," + data.magneticField.field.y.description + "," + data.magneticField.field.z.description + "," + data.attitude.roll.description + "," + data.attitude.pitch.description + "," +  data.attitude.yaw.description + "," + data.gravity.x.description + "," + data.gravity.y.description + "," + data.gravity.z.description + "]"
+                    print(data.timestamp.description)
+                    imuDic[data.timestamp.description] = "[" + data.rotationRate.x.description + "," +  data.rotationRate.y.description + "," + data.rotationRate.z.description + "," +  data.userAcceleration.x.description + "," + data.userAcceleration.y.description + "," +  data.userAcceleration.z.description + "," + data.magneticField.field.x.description + "," + data.magneticField.field.y.description + "," + data.magneticField.field.z.description + "," + data.attitude.roll.description + "," + data.attitude.pitch.description + "," +  data.attitude.yaw.description + "," + data.gravity.x.description + "," + data.gravity.y.description + "," + data.gravity.z.description + "]"
                 }
                 
                 self.frameNum += 1
