@@ -1,9 +1,9 @@
 /*
-See LICENSE folder for this sample’s licensing information.
-
-Abstract:
-A utility class that receives processed depth information.
-*/
+ See LICENSE folder for this sample’s licensing information.
+ 
+ Abstract:
+ A utility class that receives processed depth information.
+ */
 
 import Foundation
 import SwiftUI
@@ -31,7 +31,7 @@ class BinaryFrameDataWriter {
     var fileHandle: FileHandle?
     init(depthURL: URL, height: Int, width: Int) {
         print(depthURL.path)
-
+        
         do {
             FileManager.default.createFile(atPath: depthURL.path, contents: nil, attributes: nil)
             try self.fileHandle = FileHandle(forWritingTo: depthURL)
@@ -44,9 +44,9 @@ class BinaryFrameDataWriter {
         if let fileHandle = self.fileHandle {
             if compress {
                 do {
-//                    print("original size: \(frameData.count) bytes")
+                    //                    print("original size: \(frameData.count) bytes")
                     let compressedFrameData = try (frameData as NSData).compressed(using: .zlib)
-//                    print("zlib compressed size: \(compressedFrameData.count) bytes")
+                    //                    print("zlib compressed size: \(compressedFrameData.count) bytes")
                     var size = Int32(compressedFrameData.count);
                     fileHandle.write(Data(bytes: &size, count: MemoryLayout.size(ofValue: size)))
                     fileHandle.write(compressedFrameData as Data)
@@ -89,6 +89,7 @@ final class ARData {
     var exposureDuration = TimeInterval()
     var exposureOffset = Float()
     var uiImageColor = UIImage()
+    var exifData = [String : Any]()
 }
 
 // Configure and run an AR session to provide the app with depth-related AR data.
@@ -102,19 +103,46 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     var settings = VideoSettings()
     var videoWriter: VideoWriter?
     var depthWriter: BinaryFrameDataWriter?
-
+    
     var motion = CMMotionManager()
-
+    
     var metadata: [String: String] = [:]
     var cameraTransformDic: [String: String] = [:]
     var intrinsicDic: [String: String] = [:]
     var exposureOffsetDic: [String: String] = [:]
     var imuDic: [String: String] = [:]
+    var exifShutterDic: [String: String] = [:]
+    var exifBrightnessDic: [String: String] = [:]
+    
+    // For ultra-wide images
+    // var ultra_images = [UIImage]()
+//    var captureSession: AVCaptureSession!
+//    var cameraOutput: AVCapturePhotoOutput!
     
     // Configure and start the ARSession.
     override init() {
         super.init()
         arSession.delegate = self
+        // config ultra images capture
+//        captureSession = AVCaptureSession()
+//        captureSession.sessionPreset = AVCaptureSession.Preset.photo
+//        cameraOutput = AVCapturePhotoOutput()
+//
+//        if let device = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back),
+//           let input = try? AVCaptureDeviceInput(device: device) {
+//            if (captureSession.canAddInput(input)) {
+//                captureSession.addInput(input)
+//                if (captureSession.canAddOutput(cameraOutput)) {
+//                    captureSession.addOutput(cameraOutput)
+//                    captureSession.startRunning()
+//                }
+//            } else {
+//                print("issue here : captureSesssion.canAddInput")
+//            }
+//        } else {
+//            print("some problem here")
+//        }
+        
         start()
     }
     
@@ -129,9 +157,11 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     
     func pause() {
         arSession.pause()
+        // captureSession.stopRunning()
     }
-
+    
     func startRecord(sceneName: String, sceneType: String, colorWidth: Int, colorHeight: Int, depthWidth: Int, depthHeight: Int) {
+        
         let currentTime = Date()
         let dateFormater = DateFormatter()
         dateFormater.dateFormat = "dd-MM-YY HH:mm:ss"
@@ -158,7 +188,10 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         self.settings.size.height = CGFloat(colorHeight)
         self.videoWriter = VideoWriter(videoSettings: self.settings)
         self.videoWriter!.start()
-
+        
+        self.isRecord = true
+        self.frameNum = 0
+        
         self.metadata = [:]
         self.metadata["scene_name"] = sceneName
         self.metadata["scene_type"] = sceneType
@@ -166,12 +199,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         self.metadata["color_height"] =  colorHeight.description
         self.metadata["depth_width"] = depthWidth.description
         self.metadata["depth_height"] = depthHeight.description
-
-        self.isRecord = true
-        self.frameNum = 0
-
+        
     }
-
+    
     func endRecord() {
         self.motion.stopDeviceMotionUpdates()
         pause()
@@ -179,33 +209,61 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         
         // save metadata when finishing recording
         self.metadata["exposure_duration"] = arData.exposureDuration.description
+        
+        // save global exif data in metadata
+        self.metadata["exif_OffsetTime"] = arData.exifData["OffsetTime"] as? String
+        self.metadata["exif_ExposureBiasValue"] = "\(String(describing: arData.exifData["ExposureBiasValue"]!))"
+        self.metadata["exif_ExifVersion"] = arData.exifData["ExifVersion"] as? String
+        self.metadata["exif_SceneType"] = "\(String(describing: arData.exifData["SceneType"]!))"
+        self.metadata["exif_SensingMethod"] = "\(String(describing: arData.exifData["SensingMethod"]!))"
+        self.metadata["exif_FocalLength"] = "\(String(describing: arData.exifData["FocalLength"]!))"
+        self.metadata["exif_LensMake"] = arData.exifData["LensMake"] as? String
+        self.metadata["exif_LensModel"] = arData.exifData["LensModel"] as? String
+        self.metadata["exif_ApertureValue"] = "\(String(describing: arData.exifData["ApertureValue"]!))"
+        self.metadata["exif_FNumber"] = "\(String(describing: arData.exifData["FNumber"]!))"
+        self.metadata["exif_FocalLenIn35mmFilm"] = "\(String(describing: arData.exifData["FocalLenIn35mmFilm"]!))"
+        self.metadata["exif_OffsetTimeDigitized"] = arData.exifData["OffsetTimeDigitized"] as? String
+        self.metadata["exif_Flash"] = "\(String(describing: arData.exifData["Flash"]!))"
+        self.metadata["exif_OffsetTimeOriginal"] = arData.exifData["OffsetTimeOriginal"] as? String
+        self.metadata["exif_MeteringMode"] = "\(String(describing: arData.exifData["MeteringMode"]!))"
+        self.metadata["exif_WhiteBalance"] = "\(String(describing: arData.exifData["WhiteBalance"]!))"
+        self.metadata["exif_ColorSpace"] = "\(String(describing: arData.exifData["ColorSpace"]!))"
 
+        self.metadata["exif_ISOSpeedRatings"] = "\(String(describing: (arData.exifData["ISOSpeedRatings"] as! NSArray?)![0]))"
+        self.metadata["exif_LensSpecification"] = "\(String(describing: (arData.exifData["LensSpecification"] as! NSArray?)![0]))" + "," + "\(String(describing: (arData.exifData["LensSpecification"] as! NSArray?)![1]))" + "," + "\(String(describing: (arData.exifData["LensSpecification"] as! NSArray?)![2]))" + "," + "\(String(describing: (arData.exifData["LensSpecification"] as! NSArray?)![3]))"
+        
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let encoder = JSONEncoder()
-            if let jsonMetaData = try? encoder.encode(self.metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonIntrinsic = try? encoder.encode(self.intrinsicDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic) {
+            if let jsonMetaData = try? encoder.encode(self.metadata), let jsonTrans = try? encoder.encode(self.cameraTransformDic), let jsonIntrinsic = try? encoder.encode(self.intrinsicDic), let jsonOffset = try? encoder.encode(self.exposureOffsetDic), let jsonIMU = try? encoder.encode(self.imuDic), let jsonExifShutter = try? encoder.encode(self.exifShutterDic), let jsonExifBrightness = try? encoder.encode(self.exifBrightnessDic) {
                 let metadataURL = dir.appendingPathComponent(self.directory + "/metadata.json")
                 let transURL = dir.appendingPathComponent(self.directory + "/trans.json")
                 let intriURL = dir.appendingPathComponent(self.directory + "/intri.json")
                 let offsetURL = dir.appendingPathComponent(self.directory + "/offset.json")
                 let imuURL = dir.appendingPathComponent(self.directory + "/imu.json")
                 print(metadataURL.path)
+                let exifShutterURL = dir.appendingPathComponent(self.directory + "/exif_ShutterSpeedValue.json")
+                let exifBrightnessURL = dir.appendingPathComponent(self.directory + "/exif_BrightnessValue.json")
                 do {
                     try jsonMetaData.write(to: metadataURL)
                     try jsonTrans.write(to: transURL)
                     try jsonIntrinsic.write(to: intriURL)
                     try jsonOffset.write(to: offsetURL)
                     try jsonIMU.write(to: imuURL)
+                    try jsonExifShutter.write(to: exifShutterURL)
+                    try jsonExifBrightness.write(to: exifBrightnessURL)
                 } catch {
                     print("metadata writing errors")
                 }
             }
         }
-
+        
         // reinitilize dics
         self.cameraTransformDic = [String: String]()
         self.intrinsicDic = [String: String]()
         self.exposureOffsetDic = [String: String]()
         self.imuDic = [String: String]()
+        self.exifShutterDic = [String: String]()
+        self.exifBrightnessDic = [String: String]()
         
         // finish video generating
         self.videoWriter!.videoWriterInput.markAsFinished()
@@ -229,19 +287,24 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         arData.timeStamp = frame.timestamp
         arData.exposureDuration = frame.camera.exposureDuration
         arData.exposureOffset = frame.camera.exposureOffset
+        if #available(iOS 16.0, *) {
+            arData.exifData = frame.exifData
+        } else {
+            // Fallback on earlier versions
+        }
     }
-
+    
     // Send required data from `ARFrame` to the delegate class via the `onNewARData` callback.
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         if(frame.sceneDepth != nil) && (frame.smoothedSceneDepth != nil) {
             readARData(frame: frame)
-
+            
             if self.videoWriter == nil || !self.videoWriter!.isReadyForData {
                 return
             }
-
+            
             if self.isRecord {
-
+                
                 CVPixelBufferLockBaseAddress(arData.depthImage!, CVPixelBufferLockFlags(rawValue: 0))
                 let depthAddr = CVPixelBufferGetBaseAddress(arData.depthImage!)
                 let depthHeight = CVPixelBufferGetHeight(arData.depthImage!)
@@ -271,15 +334,48 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                 
                 // imu data
                 if let data = self.motion.deviceMotion {
-                    print(data.timestamp.description)
                     imuDic[data.timestamp.description] = "[" + data.rotationRate.x.description + "," +  data.rotationRate.y.description + "," + data.rotationRate.z.description + "," +  data.userAcceleration.x.description + "," + data.userAcceleration.y.description + "," +  data.userAcceleration.z.description + "," + data.magneticField.field.x.description + "," + data.magneticField.field.y.description + "," + data.magneticField.field.z.description + "," + data.attitude.roll.description + "," + data.attitude.pitch.description + "," +  data.attitude.yaw.description + "," + data.gravity.x.description + "," + data.gravity.y.description + "," + data.gravity.z.description + "]"
                 }
+                
+                // ultra image
+//                let ultra_settings = AVCapturePhotoSettings()
+//                self.cameraOutput.capturePhoto(with: ultra_settings, delegate: self)
+                
+                // non-global exif data
+                self.exifShutterDic[arData.timeStamp.description] = "\(String(describing: arData.exifData["ShutterSpeedValue"]!))"
+                self.exifBrightnessDic[arData.timeStamp.description] = "\(String(describing: arData.exifData["BrightnessValue"]!))"
                 
                 self.frameNum += 1
             }
         }
     }
 }
+
+//extension ARReceiver: AVCapturePhotoCaptureDelegate {
+//    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+//
+//        if let error = error {
+//            print("error occured : \(error.localizedDescription)")
+//        }
+//
+//        if let dataImage = photo.fileDataRepresentation() {
+//            print("size is:")
+//            print(UIImage(data: dataImage)?.size as Any)
+//
+////            let dataProvider = CGDataProvider(data: dataImage as CFData)
+////            let cgImageRef: CGImage! = CGImage(jpegDataProviderSource: dataProvider!, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+////             let image = UIImage(cgImage: cgImageRef, scale: 1.0, orientation: UIImage.Orientation.right)
+//
+//            /**
+//             save image in array / do whatever you want to do with the image here
+//             */
+////             self.images.append(image)
+//
+//        } else {
+//            print("no photo")
+//        }
+//    }
+//}
 
 class VideoWriter {
     
