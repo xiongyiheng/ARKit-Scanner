@@ -164,9 +164,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
         
         let currentTime = Date()
         let dateFormater = DateFormatter()
-        dateFormater.dateFormat = "dd-MM-YY HH:mm:ss"
-        self.directory = sceneName + " " + dateFormater.string(from: currentTime)
-        
+        dateFormater.dateFormat = "YYYY-MM-dd_HH-mm-ss"
+        self.directory = sceneName + "_" + dateFormater.string(from: currentTime)
+
         self.motion.startDeviceMotionUpdates()
         
         // create directory
