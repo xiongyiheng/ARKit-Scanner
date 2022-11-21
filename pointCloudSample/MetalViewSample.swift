@@ -62,7 +62,10 @@ struct MetalDepthView: View {
     @State var recordStatus: String = "RECORD"
     @State var displayStatus: String = "DEPTH"
     
-    @State var timer: Timer?
+    @State var frameRate = Double()
+    let fpsTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    @State var recordTimer: Timer?
     @State var accumulatedTime = 0
     @State var accumulatedTime_str = "00:00"
     @State var sceneName: String = ""
@@ -84,18 +87,20 @@ struct MetalDepthView: View {
                             .textInputAutocapitalization(.never)
                             .disableAutocorrection(true)
                             .border(.secondary)
-                            .padding([.leading, .trailing], 20)
-                            .frame(height: 20)
+                            .padding([.leading, .trailing], 20).frame(height: 30)
                         } else {
                             // Fallback on earlier versions
                             TextField(
                                 "Scene Name",
                                 text: $sceneName
-                            ).frame(height: 20).padding([.leading, .trailing], 20)
+                            ).padding([.leading, .trailing], 20).frame(height: 30)
                         }
                     }
                     HStack(alignment: .center) {
-                        Text(String(format: "FPS: %.2f", arProvider.frameRate)).frame(width: 100)
+                        Text(String(format: "FPS: %.2f", self.frameRate)).frame(width: 100)
+                            .onReceive(self.fpsTimer) { input in
+                                self.frameRate = arProvider.frameRate
+                            }
                         Picker("", selection: $sceneType) {
                             ForEach(sceneTypes, id: \.self) {
                                 Text($0)
@@ -106,7 +111,7 @@ struct MetalDepthView: View {
 
                         Text(self.accumulatedTime_str).frame(width: 80)
                         
-                    }.frame(height: 20)
+                    }.frame(height: 25)
                     ZStack(alignment: .bottom) {
                         if self.displayStatus == "DEPTH" {
                             MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: sizeW, height: sizeH)
@@ -127,7 +132,7 @@ struct MetalDepthView: View {
                             Button(self.recordStatus) {
                                 if arProvider.arReceiver.isRecord == false {
                                     // timer initialization
-                                    self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                                    self.recordTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
                                         self.accumulatedTime += 1
                                         let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
                                         var m_str = String(m)
@@ -147,7 +152,7 @@ struct MetalDepthView: View {
                                     arProvider.startRecord(sceneName: sceneName, sceneType: sceneType)
                                     
                                 } else {
-                                    self.timer?.invalidate()
+                                    self.recordTimer?.invalidate()
                                     self.accumulatedTime = 0
                                     self.accumulatedTime_str = "00:00"
                                     self.recordStatus = "RECORD"
