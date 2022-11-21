@@ -35,6 +35,7 @@ extension CVPixelBuffer {
     
 }
 
+
 // Collect AR data using a lower-level receiver. This class converts AR data
 // to a Metal texture, optionally upscaling depth data using a guided filter,
 // and implements `ARDataReceiver` to respond to `onNewARData` events.
@@ -79,6 +80,8 @@ final class ARProvider: ARDataReceiver {
     var exposureOffset = Float()
     var uiImageColor = UIImage()
     var depthImage: CVPixelBuffer?
+    var frameRate = Double()
+    var lastTimeStamp = Double()
     
     // Enable or disable depth upsampling.
     public var isToUpsampleDepth: Bool = false {
@@ -179,6 +182,12 @@ final class ARProvider: ARDataReceiver {
         cameraTransform = lastArData!.cameraTransform
         cameraIntrinsics = lastArData!.cameraIntrinsics
         timeStamp = lastArData!.timeStamp
+
+        // Compute frame rate
+        // print("Time: \(timeStamp) \(lastTimeStamp)")
+        frameRate = 1.0 / (timeStamp - lastTimeStamp)
+        lastTimeStamp = timeStamp
+
         exposureDuration = lastArData!.exposureDuration
         exposureOffset = lastArData!.exposureOffset
         uiImageColor = lastArData!.uiImageColor
@@ -206,29 +215,29 @@ final class ARProvider: ARDataReceiver {
                                            depth: 1)
             computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
             computeEncoder.endEncoding()
-            
+
             // Downscale the RGB data. Pass in the target resoultion.
             mpsScaleFilter?.encode(commandBuffer: cmdBuffer, sourceTexture: colorRGBTexture,
                                    destinationTexture: colorRGBTextureDownscaled)
             // Match the input depth resolution.
             mpsScaleFilter?.encode(commandBuffer: cmdBuffer, sourceTexture: colorRGBTexture,
                                    destinationTexture: colorRGBTextureDownscaledLowRes)
-            
+
             // Upscale the confidence data. Pass in the target resolution.
             mpsScaleFilter?.encode(commandBuffer: cmdBuffer, sourceTexture: confidenceContent.texture!,
                                    destinationTexture: destConfTexture)
-            
+
             // Encode the guided filter.
             guidedFilter?.encodeRegression(to: cmdBuffer, sourceTexture: depthContent.texture!,
                                            guidanceTexture: colorRGBTextureDownscaledLowRes, weightsTexture: nil,
                                            destinationCoefficientsTexture: coefTexture)
-            
+
             // Optionally, process `coefTexture` here.
-            
+
             guidedFilter?.encodeReconstruction(to: cmdBuffer, guidanceTexture: colorRGBTextureDownscaled,
                                                coefficientsTexture: coefTexture, destinationTexture: destDepthTexture)
             cmdBuffer.commit()
-            
+
             // Override the original depth texture with the upscaled version.
             depthContent.texture = destDepthTexture
         }
