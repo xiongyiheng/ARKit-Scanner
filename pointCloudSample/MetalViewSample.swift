@@ -41,8 +41,8 @@ extension Image {
 struct MetalDepthView: View {
     
     // Set the default sizes for the texture views.
-    let sizeH: CGFloat = 256
-    let sizeW: CGFloat = 192
+    let sizeH: CGFloat = 256 * 1.55
+    let sizeW: CGFloat = 192 * 1.55
     
     // Manage the AR session and AR data processing.
     //- Tag: ARProvider
@@ -62,7 +62,10 @@ struct MetalDepthView: View {
     @State var recordStatus: String = "RECORD"
     @State var displayStatus: String = "DEPTH"
     
-    @State var timer: Timer?
+    @State var frameRate = Double()
+    let fpsTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    @State var recordTimer: Timer?
     @State var accumulatedTime = 0
     @State var accumulatedTime_str = "00:00"
     @State var sceneName: String = ""
@@ -73,9 +76,9 @@ struct MetalDepthView: View {
         if !ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth]) {
             Text("Unsupported Device: This app requires the LiDAR Scanner to access the scene's depth.")
         } else {
-            GeometryReader { geometry in
-                VStack(alignment: .leading) {
-                    HStack() {
+            GeometryReader { geo in
+                VStack(alignment: .center) {
+                    HStack(alignment: .center) {
                         if #available(iOS 15.0, *) {
                             TextField(
                                 "Scene Name",
@@ -84,12 +87,20 @@ struct MetalDepthView: View {
                             .textInputAutocapitalization(.never)
                             .disableAutocorrection(true)
                             .border(.secondary)
-                            .frame(width: 100)
-                            
+                            .padding([.leading, .trailing], 20).frame(height: 30)
                         } else {
                             // Fallback on earlier versions
+                            TextField(
+                                "Scene Name",
+                                text: $sceneName
+                            ).padding([.leading, .trailing], 20).frame(height: 30)
                         }
-                        
+                    }
+                    HStack(alignment: .center) {
+                        Text(String(format: "FPS: %.2f", self.frameRate)).frame(width: 100)
+                            .onReceive(self.fpsTimer) { input in
+                                self.frameRate = arProvider.frameRate
+                            }
                         Picker("", selection: $sceneType) {
                             ForEach(sceneTypes, id: \.self) {
                                 Text($0)
@@ -97,65 +108,68 @@ struct MetalDepthView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(width: 120)
-                        
+
                         Text(self.accumulatedTime_str).frame(width: 80)
                         
-                    }
-                    
-                    if self.displayStatus == "DEPTH" {
-                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: 192 * 2, height: 256 * 2)
-                        
-                    } else {
-                        MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: 192 * 2, height: 256 * 2).overlay(MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence).frame(width: 192 * 2, height: 256 * 2).opacity(0.5))
-                    }
-                    
-                }
-                
-            }
-            HStack() {
-                Button(self.displayStatus) {
-                    if self.displayStatus == "DEPTH" {
-                        self.displayStatus = "RGB"
-                    } else {
-                        self.displayStatus = "DEPTH"
-                    }
-                }.opacity(0.7).frame(width: 80)
-                
-                Button(self.recordStatus) {
-                    if arProvider.arReceiver.isRecord == false {
-                        // timer initialization
-                        self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-                            self.accumulatedTime += 1
-                            let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-                            var m_str = String(m)
-                            var s_str = String(s)
-                            if m_str.count == 1 {
-                                m_str = "0" + m_str
-                            }
-                            if s_str.count == 1 {
-                                s_str = "0" + s_str
-                            }
-
-                            self.accumulatedTime_str = m_str + ":" + s_str
+                    }.frame(height: 25)
+                    ZStack(alignment: .bottom) {
+                        if self.displayStatus == "DEPTH" {
+                            MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: sizeW, height: sizeH)
+                        } else {
+                            MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: sizeW, height: sizeH).overlay(MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence).frame(width: sizeW, height: sizeH).opacity(0.5))
                         }
-                        
-                        self.recordStatus = "STOP"
+                        Spacer()
 
-                        arProvider.startRecord(sceneName: sceneName, sceneType: sceneType)
+                        HStack (alignment: .center){
+                            Button(self.displayStatus) {
+                                if self.displayStatus == "DEPTH" {
+                                    self.displayStatus = "RGB"
+                                } else {
+                                    self.displayStatus = "DEPTH"
+                                }
+                            }.opacity(0.7).frame(width: 100).clipShape(Capsule()).padding([.trailing, .bottom], 20)
 
-                    } else {
-                        self.timer?.invalidate()
-                        self.accumulatedTime = 0
-                        self.accumulatedTime_str = "00:00"
-                        self.recordStatus = "RECORD"
-                        arProvider.endRecord()
+                            Button(self.recordStatus) {
+                                if arProvider.arReceiver.isRecord == false {
+                                    // timer initialization
+                                    self.recordTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                                        self.accumulatedTime += 1
+                                        let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
+                                        var m_str = String(m)
+                                        var s_str = String(s)
+                                        if m_str.count == 1 {
+                                            m_str = "0" + m_str
+                                        }
+                                        if s_str.count == 1 {
+                                            s_str = "0" + s_str
+                                        }
+                                        
+                                        self.accumulatedTime_str = m_str + ":" + s_str
+                                    }
+                                    
+                                    self.recordStatus = "STOP"
+                                    
+                                    arProvider.startRecord(sceneName: sceneName, sceneType: sceneType)
+                                    
+                                } else {
+                                    self.recordTimer?.invalidate()
+                                    self.accumulatedTime = 0
+                                    self.accumulatedTime_str = "00:00"
+                                    self.recordStatus = "RECORD"
+                                    arProvider.endRecord()
+                                }
+                            }.padding()
+                                .foregroundColor(.black)
+                                .background(Color(red: 1, green: 0, blue: 0))
+                                .clipShape(Capsule())
+                                .opacity(0.7)
+                                .frame(width: 100)
+                                .padding([.bottom], 10)
+                            
+                        }
                     }
-                }.padding()
-                    .foregroundColor(.black)
-                    .background(Color(red: 1, green: 0, blue: 0))
-                    .clipShape(Capsule())
-                    .opacity(0.7)
-                    .frame(width: 100)
+                }
+
             }
         }
     }
