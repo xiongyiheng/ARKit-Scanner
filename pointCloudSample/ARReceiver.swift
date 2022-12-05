@@ -11,6 +11,9 @@ import Combine
 import ARKit
 import AVFoundation
 import CoreMotion
+import Accelerate
+import Compression
+
 
 struct VideoSettings {
     var size = CGSize(width: 1920, height: 1440) // predefined in arkit
@@ -29,9 +32,18 @@ struct VideoSettings {
 
 class BinaryFrameDataWriter {
     var fileHandle: FileHandle?
+    var srcBuffer: UnsafeMutablePointer<UInt8>
+    var dstBuffer: UnsafeMutablePointer<UInt8>
+    let algorithm = COMPRESSION_LZ4_RAW
+    var height_ = Int()
+    var width_ = Int()
+
     init(depthURL: URL, height: Int, width: Int) {
+        height_ = height
+        width_ = width
         print(depthURL.path)
-        
+        srcBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: height * width * 4)
+        dstBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: height * width * 4)
         do {
             FileManager.default.createFile(atPath: depthURL.path, contents: nil, attributes: nil)
             try self.fileHandle = FileHandle(forWritingTo: depthURL)
@@ -44,18 +56,30 @@ class BinaryFrameDataWriter {
         if let fileHandle = self.fileHandle {
             if compress {
                 do {
-                    //                    print("original size: \(frameData.count) bytes")
-                    let compressedFrameData = try (frameData as NSData).compressed(using: .zlib)
-                    //                    print("zlib compressed size: \(compressedFrameData.count) bytes")
-                    var size = Int32(compressedFrameData.count);
+                    frameData.copyBytes(to: srcBuffer, count: height_ * width_ * 2)
+                    let compressedSize = compression_encode_buffer(dstBuffer, height_ * width_ * 2,
+                                                                   srcBuffer, height_ * width_ * 2,
+                                                                   nil,
+                                                                   algorithm)
+
+                    print("Before \(frameData.count) bytes. After zlib compressed size: \(compressedSize) bytes")
+                    var size = Int32(compressedSize)
                     fileHandle.write(Data(bytes: &size, count: MemoryLayout.size(ofValue: size)))
-                    fileHandle.write(compressedFrameData as Data)
+                    var compressedFrameData = Data(bytes: dstBuffer, count: Int(size))
+                    fileHandle.write(compressedFrameData)
+                    
+//                    let compressedFrameData = try (frameData as NSData).compressed(using: .lz4)
+//                    print("Before \(frameData.count) bytes. After zlib compressed size: \(compressedFrameData.count) bytes")
+//                    var size = Int32(compressedFrameData.count);
+//                    fileHandle.write(Data(bytes: &size, count: MemoryLayout.size(ofValue: size)))
+//                    fileHandle.write(compressedFrameData as Data)
                 } catch {
                     print ("Compression error: \(error)")
                 }
             }
             else {
                 fileHandle.write(frameData)
+                print("Write \(frameData.count) bytes")
             }
             do {
                 try fileHandle.synchronize()
@@ -67,6 +91,154 @@ class BinaryFrameDataWriter {
             print("No handle")
         }
     }
+}
+
+class Depth2IntConverter {
+    // Convert each pixel from Float32 to UInt16
+    var bufferU16 = vImage_Buffer()
+    var bufferF32 = vImage_Buffer()
+    var dataPtr: UnsafeMutablePointer<UInt8>
+    var height_ = Int()
+    var width_ = Int()
+    let inBitsPerPixel = 32
+    let outBitsPerPixel = 16
+
+    init(height: Int, width: Int) {
+        height_ = height
+        width_ = width
+        dataPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: height * width * inBitsPerPixel / 8)
+        vImageBuffer_Init(&bufferU16, UInt(height), UInt(width), UInt32(outBitsPerPixel), vImage_Flags(kvImageNoFlags))
+    }
+    
+    func convert(inputData: Data) -> Data {
+//        let alignmentAndRowBytes = try vImage_Buffer.preferredAlignmentAndRowBytes(
+//            width: width_,
+//            height: height_,
+//            bitsPerPixel: UInt32(inBitsPerPixel))
+        inputData.copyBytes(to: dataPtr, count: height_ * width_ * inBitsPerPixel / 8)
+        bufferF32 = vImage_Buffer(data: dataPtr,
+                                  height: vImagePixelCount(height_),
+                                  width: vImagePixelCount(width_),
+                                  rowBytes: width_ * inBitsPerPixel / 8)
+        // src_buffer, out_buffer, offset, scale, flag
+        // resultPixel = SATURATED_CLIP_0_to_USHRT_MAX( (sourcePixel  - offset) / scale + 0.5f)
+        vImageConvert_FTo16U(&bufferF32, &bufferU16, 0, 0.001, vImage_Flags(kvImageNoFlags))
+        let debugData = bufferU16.data!.assumingMemoryBound(to: UInt16.self)
+        print(debugData[0], debugData[1])
+        let outData = Data(bytes: bufferU16.data, count: height_ * width_ * outBitsPerPixel / 8)
+        return outData
+    }
+    
+    deinit {
+        free(dataPtr)
+        free(bufferU16.data)
+    }
+}
+
+//func convertDepthBuffer(inputBuffer: Data, height: Int, width: Int, bitsPerPixel: Int) -> Data {
+//    do {
+//
+////        print("F32", bufferF32)
+//        var bufferF32Format = vImage_CGImageFormat(
+//            bitsPerComponent: 32,
+//            bitsPerPixel: 32 * 1,
+//            colorSpace: nil,
+//            bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo.floatComponents.rawValue),
+//            version: 0,
+//            decode: nil,
+//            renderingIntent: .defaultIntent)
+//
+//        var bufferU16Format = vImage_CGImageFormat(
+//            bitsPerComponent: 32,
+//            bitsPerPixel: 32 * 1,
+//            colorSpace: nil,
+//            bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo.floatComponents.rawValue),
+//            version: 0,
+//            decode: nil,
+//            renderingIntent: .defaultIntent)
+//        var error = vImageConvert_FTo16U(&bufferF32, &bufferU16, 0, 0.001, vImage_Flags(kvImageNoFlags))  // -> vImage_Error
+//
+//        print("U16", bufferU16)
+//        let debugData = bufferU16.data!.assumingMemoryBound(to: UInt16.self)
+//        print(debugData[0], debugData[1])
+//        return Data(bytes: bufferU16.data, count: height * width * 16 / 8)
+//    } catch let error as NSError {
+//        print("convert alignment error: \(error)")
+//    } final {
+//        free(bufferU16)
+//        free(bufferF32)
+//        free(dataPtr)
+//    }
+//    return Data()
+////
+////    let data = UnsafeMutableRawPointer.allocate(
+////        byteCount: alignmentAndRowBytes.rowBytes * height,
+////        alignment: alignmentAndRowBytes.alignment)
+//
+//}
+
+func convertPixelBuffer(inputBuffer: CVPixelBuffer, height: UInt, width: UInt) {
+    print(inputBuffer)
+    var bufferF32 = vImage_Buffer()
+    vImageBuffer_Init(&bufferF32, height, width, 32, vImage_Flags(kvImageNoFlags))
+    var bufferU16 = vImage_Buffer()
+    vImageBuffer_Init(&bufferU16, height, width, 16, vImage_Flags(kvImageNoFlags))
+//    var inputFormat = vImageCVImageFormat.make(buffer: inputBuffer)
+    var backgroundColor = CGFloat(0.0)
+    var bufferFormat = vImage_CGImageFormat(
+        bitsPerComponent: 32,
+        bitsPerPixel: 32 * 1,
+        colorSpace: nil,
+        bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo.floatComponents.rawValue),
+        version: 0,
+        decode: nil,
+        renderingIntent: .defaultIntent)
+//    let cvformat = vImageCVImageFormat_CreateWithCVPixelBuffer(inputBuffer)
+    let cvformat = vImageCVImageFormat_Create(
+//        kCVPixelFormatType_DepthFloat32,
+        kCVPixelFormatType_OneComponent32Float,
+        kvImage_ARGBToYpCbCrMatrix_ITU_R_709_2,
+        kCVImageBufferChromaLocation_TopLeft,
+        nil,
+        0
+    ).takeRetainedValue()
+    print(cvformat)
+    //.takeRetainedValue()
+    var error = kvImageNoError
+    error = vImageBuffer_InitWithCVPixelBuffer(&bufferF32, &bufferFormat, inputBuffer, cvformat, nil, vImage_Flags(kvImageNoFlags))
+    guard error == kvImageNoError else {
+        print("Fail to convert CVPixelBuffer to vImageBuffer")
+        return
+//        throw EqualizationImageProcessorError.equalizationOperationFailed
+    }
+//    defer {
+//        free(bufferF.data)
+//    }
+//    vImageBuffer_InitWithCVPixelBuffer(
+//        buffer: &buffer,
+//        desiredFormat: &bufferFormat,
+//        cvPixelBuffer: inputBuffer,
+//        cvImageFormat: inputFormat,
+//        backgroundColor: &backgroundColor,
+//        flags: UInt32(kvImageNoFlags)
+//    )
+    // src_buffer, out_buffer, offset, scale, flag
+    // resultPixel = SATURATED_CLIP_0_to_USHRT_MAX( (sourcePixel  - offset) / scale + 0.5f)
+    vImageConvert_FTo16U(&bufferF32, &bufferU16, 0, 4000, vImage_Flags(kvImageNoFlags))  // -> vImage_Error
+    bufferFormat = vImage_CGImageFormat(
+        bitsPerComponent: 16,
+        bitsPerPixel: 16 * 1,
+        colorSpace: nil,
+        bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue),
+        version: 0,
+        decode: nil,
+        renderingIntent: .defaultIntent)
+//    var outBuffer = CVPixelBuffer()
+//    vImageBuffer_CopyToCVPixelBuffer(&bufferU16, &bufferFormat, inputBuffer, nil, nil, vImage_Flags(kvImageNoFlags))
+//    print(inputBuffer)
+
+//    let debugData = bufferU16.data!.assumingMemoryBound(to: UInt16.self)
+//    print(debugData[0], debugData[1])
 }
 
 // Receive the newest AR data from an `ARReceiver`.
@@ -103,6 +275,7 @@ final class ARReceiver: NSObject, ARSessionDelegate {
     var settings = VideoSettings()
     var videoWriter: VideoWriter?
     var depthWriter: BinaryFrameDataWriter?
+    var depthConverter = Depth2IntConverter(height: 192, width: 256)
     
     var motion = CMMotionManager()
     
@@ -310,8 +483,9 @@ final class ARReceiver: NSObject, ARSessionDelegate {
                 let depthHeight = CVPixelBufferGetHeight(arData.depthImage!)
                 let depthBpr = CVPixelBufferGetBytesPerRow(arData.depthImage!)
                 let depthBuffer = Data(bytes: depthAddr!, count: (depthBpr*depthHeight))
+                let depthBufferU16 = depthConverter.convert(inputData: depthBuffer)
                 if let depthWriter = self.depthWriter {
-                    depthWriter.writerFrame(frameData: depthBuffer, compress: true)
+                    depthWriter.writerFrame(frameData: depthBufferU16, compress: true)
                 }
                 CVPixelBufferUnlockBaseAddress(arData.depthImage!,  CVPixelBufferLockFlags(rawValue: 0));
                 // save as video
