@@ -62,12 +62,6 @@ struct MetalDepthView: View {
     @State var recordStatus: String = "RECORD"
     @State var displayStatus: String = "DEPTH"
     
-    @State var frameRate = Double()
-    let fpsTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    @State var recordTimer: Timer?
-    @State var accumulatedTime = 0
-    @State var accumulatedTime_str = "00:00"
     @State var sceneName: String = ""
     @State var sceneType = "apartment"
     let sceneTypes = ["apartment", "bathroom", "bedroom / hotel", "bookstore / library", "conference room", "copy / mail room", "hallway", "kitchen", "laundry room", "living room / lounge", "office", "storage / basement / garage", "classroom", "misc"]
@@ -97,10 +91,7 @@ struct MetalDepthView: View {
                         }
                     }
                     HStack(alignment: .center) {
-                        Text(String(format: "FPS: %.2f", self.frameRate)).frame(width: 100)
-                            .onReceive(self.fpsTimer) { input in
-                                self.frameRate = arProvider.frameRate
-                            }
+                        FPSView(arProvider: arProvider)
                         Picker("", selection: $sceneType) {
                             ForEach(sceneTypes, id: \.self) {
                                 Text($0)
@@ -108,8 +99,12 @@ struct MetalDepthView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(width: 120)
-
-                        Text(self.accumulatedTime_str).frame(width: 80)
+                        
+                        if (self.recordStatus == "STOP") {
+                            AccumulatedTimeView(isRecord: true)
+                        } else {
+                            AccumulatedTimeView(isRecord: false)
+                        }
                         
                     }.frame(height: 25)
                     ZStack(alignment: .bottom) {
@@ -119,7 +114,7 @@ struct MetalDepthView: View {
                             MetalTextureViewColor(colorYContent: arProvider.colorYContent, colorCbCrContent: arProvider.colorCbCrContent).frame(width: sizeW, height: sizeH).overlay(MetalTextureViewDepth(content: arProvider.depthContent, confSelection: $selectedConfidence).frame(width: sizeW, height: sizeH).opacity(0.5))
                         }
                         Spacer()
-
+                        
                         HStack (alignment: .center){
                             Button(self.displayStatus) {
                                 if self.displayStatus == "DEPTH" {
@@ -128,33 +123,13 @@ struct MetalDepthView: View {
                                     self.displayStatus = "DEPTH"
                                 }
                             }.opacity(0.7).frame(width: 100).clipShape(Capsule()).padding([.trailing, .bottom], 20)
-
+                            
                             Button(self.recordStatus) {
                                 if arProvider.arReceiver.isRecord == false {
-                                    // timer initialization
-                                    self.recordTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-                                        self.accumulatedTime += 1
-                                        let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
-                                        var m_str = String(m)
-                                        var s_str = String(s)
-                                        if m_str.count == 1 {
-                                            m_str = "0" + m_str
-                                        }
-                                        if s_str.count == 1 {
-                                            s_str = "0" + s_str
-                                        }
-                                        
-                                        self.accumulatedTime_str = m_str + ":" + s_str
-                                    }
-                                    
                                     self.recordStatus = "STOP"
-                                    
                                     arProvider.startRecord(sceneName: sceneName, sceneType: sceneType)
                                     
                                 } else {
-                                    self.recordTimer?.invalidate()
-                                    self.accumulatedTime = 0
-                                    self.accumulatedTime_str = "00:00"
                                     self.recordStatus = "RECORD"
                                     arProvider.endRecord()
                                 }
@@ -169,9 +144,60 @@ struct MetalDepthView: View {
                         }
                     }
                 }
-
+                
             }
         }
+    }
+}
+
+struct FPSView: View {
+    @State var frameRate = Double()
+    var arProvider: ARProvider?
+    init(arProvider: ARProvider) {
+        self.arProvider = arProvider
+    }
+    let fpsTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    var body: some View {
+        Text(String(format: "FPS: %.2f", self.frameRate)).frame(width: 100)
+            .onReceive(self.fpsTimer) { input in
+                self.frameRate = self.arProvider!.frameRate
+                // print("refresh")
+            }
+    }
+}
+
+struct AccumulatedTimeView: View {
+    @State var accumulatedTime = 0
+    @State var accumulatedTime_str = "00:00"
+    @State var isRecord = true
+    init(isRecord: Bool) {
+        self.isRecord = isRecord
+    }
+    let recordTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    var body: some View {
+        Text(self.accumulatedTime_str).frame(width: 80)
+            .onReceive(self.recordTimer) { input in
+                if (self.isRecord == true) {
+                    self.accumulatedTime += 1
+                    let (_,m,s) = secondsToHoursMinutesSeconds(self.accumulatedTime)
+                    var m_str = String(m)
+                    var s_str = String(s)
+                    if m_str.count == 1 {
+                        m_str = "0" + m_str
+                    }
+                    if s_str.count == 1 {
+                        s_str = "0" + s_str
+                    }
+                    
+                    self.accumulatedTime_str = m_str + ":" + s_str
+                    print("refresh when true")
+                } else {
+                    print("refresh when false")
+                    self.accumulatedTime = 0
+                    self.accumulatedTime_str = "00:00"
+                }
+            }
+        
     }
 }
 
