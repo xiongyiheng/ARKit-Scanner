@@ -1,5 +1,5 @@
 # iOS ARKit-Scanner App
-The scanner app acquires RGB-D scans using iPhone LiDAR sensor and ARKit API, stores color, depth and IMU data on local memory and then uploads to PC for processing[[Watch the video]](https://www.youtube.com/shorts/ZB822Hd0jjs). The whole project is built based on [Displaying a Point Cloud Using Scene Depth](https://developer.apple.com/documentation/arkit/environmental_analysis/displaying_a_point_cloud_using_scene_depth) and is used for data collection by [ScanNet++](https://cy94.github.io/scannetpp/).
+The scanner app acquires RGB-D scans using iPhone LiDAR sensor and ARKit API, stores color, depth and IMU data on local memory and then uploads to PC for processing[[Watch the video]](https://www.youtube.com/shorts/ZB822Hd0jjs). The whole project is built based on [Displaying a Point Cloud Using Scene Depth](https://developer.apple.com/documentation/arkit/environmental_analysis/displaying_a_point_cloud_using_scene_depth) and is used for data collection by [ScanNet++](https://cy94.github.io/scannetpp/](https://kaldir.vc.in.tum.de/scannetpp/).
 
 ## Prerequisites for compilation
 - iPhone 13 pro (can work with other iPads and iPhones with LiDAR sensor but untested)
